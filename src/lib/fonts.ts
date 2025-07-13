@@ -1,24 +1,15 @@
-// src/lib/fonts.ts
 import localFont from "next/font/local";
+import { Dancing_Script } from "next/font/google";
 
 export const cocogoose = localFont({
-  src: [
-    {
-      path: "../fonts/Cocogoose-Pro-Regular-trial.ttf",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "../fonts/Cocogoose-Pro-Bold-trial.ttf",
-      weight: "700",
-      style: "normal",
-    },
-    {
-      path: "../fonts/Cocogoose-Pro-Light-trial.ttf",
-      weight: "300",
-      style: "normal",
-    },
-  ],
+  src: "../public/fonts/Cocogoose-Pro-Regular-trial.ttf",
   variable: "--font-cocogoose",
+  display: "swap",
+});
+
+export const dancingScript = Dancing_Script({
+  subsets: ["latin"],
+  weight: ["600"],
+  variable: "--font-dancing-script",
   display: "swap",
 });
