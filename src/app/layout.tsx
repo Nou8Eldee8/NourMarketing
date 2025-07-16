@@ -1,11 +1,24 @@
 // app/layout.tsx
+import "./globals.css"; // لازم تستورد ملفات CSS هنا
+import { cocogoose, dancingScript  } from "@/lib/fonts"; // تأكد من أن ده المسار الصحيح للخطوط
 import Script from "next/script";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const metadata = {
+  title: "Nour Marketing Agency",
+  description: "We build better brands online.",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={`${cocogoose.variable} ${dancingScript.variable}`}
+    >
       <head>
-        {/* Google Analytics script */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-V43RWR6MTV"
           strategy="afterInteractive"
@@ -19,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
       </head>
-      <body>{children}</body>
+      <body className="bg-[#0f0215] text-[#fee3d8]">{children}</body>
     </html>
   );
 }
