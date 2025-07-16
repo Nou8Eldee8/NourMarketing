@@ -57,7 +57,7 @@ export default function OurPartnersAndSkills() {
             Our Featured Clients
           </h2>
           <div className="rounded-3xl overflow-hidden border border-white/40 bg-white/10 backdrop-blur-lg py-5 shadow-inner">
-<Marquee gradient={true} gradientColor="white" speed={40}>
+        <Marquee gradient={false} speed={40}>
               {logos.map((logo, idx) => (
                 <div
                   key={idx}

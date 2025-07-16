@@ -3,8 +3,8 @@ import "./globals.css";
 import { cocogoose, dancingScript } from "@/lib/fonts";
 
 export const metadata = {
-  title: "Your Website",
-  description: "Built with Cocogoose and Dancing Script",
+  title: "Nour Marketing Agency",
+  description: "Building Better Brands Online",
 };
 
 export default function RootLayout({
