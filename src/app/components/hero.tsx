@@ -1,9 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Header from "./Header";
 import bgImage from "./bg.jpg";
 import { MessageCircle, FolderOpen } from "lucide-react";
+import Link from "next/link";
+
 
 export default function Hero() {
   return (
@@ -39,9 +40,12 @@ export default function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-10">
-            <button className="bg-[#fee3d8] text-[#250d3f] font-semibold py-2 px-6 rounded-full shadow hover:scale-105 transition flex items-center gap-2">
-              <MessageCircle size={16} /> Let’s Talk
-            </button>
+<Link
+  href="/contact"
+  className="bg-[#fee3d8] text-[#250d3f] font-semibold py-2 px-6 rounded-full shadow hover:scale-105 transition flex items-center gap-2"
+>
+  <MessageCircle size={16} /> Let’s Talk
+</Link>
             <button className="bg-[#250d3f] text-[#fee3d8] font-semibold py-2 px-6 rounded-full shadow hover:scale-105 transition flex items-center gap-2">
               <FolderOpen size={16} /> Our Work
             </button>
