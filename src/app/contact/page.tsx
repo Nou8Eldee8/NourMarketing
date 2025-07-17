@@ -1,4 +1,3 @@
-// app/contact/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -6,10 +5,35 @@ import { useState } from "react";
 import { MessageCircle } from "lucide-react";
 
 export default function ContactPage() {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const form = e.currentTarget;
+    const data = new FormData(form);
+
+    const response = await fetch("https://formspree.io/f/xgvzenbe", {
+      method: "POST",
+      body: data,
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    setSubmitting(false);
+
+    if (response.ok) {
+      window.location.href = "/thank-you";
+    } else {
+      alert("Something went wrong. Please try again.");
+    }
+  };
+
   return (
     <section className="min-h-screen bg-[#0f0215] text-[#fee3d8] px-6 py-24">
       <div className="max-w-3xl mx-auto space-y-12 text-center">
-        {/* Logo */}
         <Link
           href="/"
           className="text-6xl font-bold transition text-[#fee3d8] mb-16"
@@ -18,7 +42,6 @@ export default function ContactPage() {
           N
         </Link>
 
-        {/* Header */}
         <div>
           <h1 className="text-4xl md:text-5xl font-cocogoose font-bold mb-4">Let’s Talk</h1>
           <p className="text-xl text-[#fee3d8]/80">
@@ -26,12 +49,7 @@ export default function ContactPage() {
           </p>
         </div>
 
-        {/* Formspree Form */}
-        <form
-          action="https://formspree.io/f/xgvzenbe" // 👈 replace with your ID
-          method="POST"
-          className="space-y-6 text-left"
-        >
+        <form onSubmit={handleSubmit} className="space-y-6 text-left">
           <input
             type="text"
             name="name"
@@ -55,15 +73,13 @@ export default function ContactPage() {
 
           <button
             type="submit"
+            disabled={submitting}
             className="bg-[#290f4c] hover:bg-[#3a1b63] text-[#fee3d8] px-6 py-3 rounded-xl font-semibold transition-all w-full"
           >
-            Get Your Custom Strategy
+            {submitting ? "Submitting..." : "Get Your Custom Strategy"}
           </button>
-            <input type="hidden" name="_redirect" value="https://nourmarketing.netlify.app/thank-you" />
-
         </form>
 
-        {/* WhatsApp Button */}
         <div className="pt-6">
           <a
             href="https://wa.me/201283052272"
