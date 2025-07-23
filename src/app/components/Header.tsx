@@ -17,7 +17,6 @@ import {
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuViewport,
 } from "@/components/ui/navigation-menu";
 
 export default function Header() {
@@ -53,32 +52,21 @@ export default function Header() {
           {/* Center: Desktop Navigation */}
           <NavigationMenu className="hidden md:flex flex-1 justify-center">
             <NavigationMenuList className="flex items-center gap-6 font-cocogoose text-sm text-[#fee3d8]">
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  href="/portfolio"
-                  className="px-5 py-2 rounded-full transition-all duration-300 hover:bg-[#2D2327] hover:text-white hover:scale-105"
-                >
-                  Our Work
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  href="#our-story"
-                  className="px-5 py-2 rounded-full transition-all duration-300 hover:bg-[#2D2327] hover:text-white hover:scale-105"
-                >
-                  Our Story
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  href="/contact"
-                  className="px-5 py-2 rounded-full transition-all duration-300 hover:bg-[#2D2327] hover:text-white hover:scale-105"
-                >
-                  Let’s Talk
-                </NavigationMenuLink>
-              </NavigationMenuItem>
+              {[
+                { href: "/portfolio", label: "Our Work" },
+                { href: "#our-story", label: "Our Story" },
+                { href: "/contact", label: "Let’s Talk" },
+                { href: "/about", label: "About Us" },
+              ].map(({ href, label }) => (
+                <NavigationMenuItem key={href}>
+                  <NavigationMenuLink
+                    href={href}
+                    className="whitespace-nowrap px-5 py-2 rounded-full transition-all duration-300 hover:bg-[#2D2327] hover:text-white hover:scale-105"
+                  >
+                    {label}
+                  </NavigationMenuLink>
+                </NavigationMenuItem>
+              ))}
             </NavigationMenuList>
           </NavigationMenu>
 
@@ -136,22 +124,22 @@ export default function Header() {
                 label: "Instagram",
               },
               {
-                href: "#form",
+                href: "/contact",
                 icon: <FileText size={18} />,
                 label: "Fill our form",
               },
               {
-                href: "#portfolio",
+                href: "/portfolio",
                 icon: <FolderOpen size={18} />,
                 label: "Our portfolio",
               },
               {
-                href: "#our-story",
+                href: "/about",
                 icon: <BookOpen size={18} />,
                 label: "Our Story",
               },
               {
-                href: "/docs",
+                href: "/contact",
                 icon: <MessageCircle size={18} />,
                 label: "Let’s talk",
               },

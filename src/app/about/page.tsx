@@ -2,11 +2,22 @@
 
 import Link from "next/link";
 import Footer from "../components/Footer";
+import bgImage from "../components/bg.jpg"; // ✅ استيراد الخلفية
+import Image from "next/image";
+
 
 export default function AboutPage() {
   return (
     <>
-    <section className="min-h-screen bg-[#0f0215] text-[#fee3d8] px-6 py-24">
+         <section className="relative min-h-screen bg-[#0f0215] text-[#fee3d8] px-6 py-24 overflow-hidden">
+        {/* ✅ خلفية ضبابية */}
+        <Image
+          src={bgImage}
+          alt="background"
+          fill
+          className="object-cover opacity-10 blur-2xl pointer-events-none select-none"
+          priority
+        />
       <div className="max-w-5xl mx-auto space-y-20">
            {/* Logo */}
         <Link
