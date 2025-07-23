@@ -55,7 +55,7 @@ export default function Header() {
             <NavigationMenuList className="flex items-center gap-6 font-cocogoose text-sm text-[#fee3d8]">
               <NavigationMenuItem>
                 <NavigationMenuLink
-                  href="#portfolio"
+                  href="/portfolio"
                   className="px-5 py-2 rounded-full transition-all duration-300 hover:bg-[#2D2327] hover:text-white hover:scale-105"
                 >
                   Our Work
@@ -73,7 +73,7 @@ export default function Header() {
 
               <NavigationMenuItem>
                 <NavigationMenuLink
-                  href="/docs"
+                  href="/contact"
                   className="px-5 py-2 rounded-full transition-all duration-300 hover:bg-[#2D2327] hover:text-white hover:scale-105"
                 >
                   Let’s Talk

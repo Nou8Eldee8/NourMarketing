@@ -46,9 +46,12 @@ export default function Hero() {
 >
   <MessageCircle size={16} /> Let’s Talk
 </Link>
-            <button className="bg-[#250d3f] text-[#fee3d8] font-semibold py-2 px-6 rounded-full shadow hover:scale-105 transition flex items-center gap-2">
-              <FolderOpen size={16} /> Our Work
-            </button>
+<Link
+  href="/portfolio"
+  className="bg-[#250d3f] text-[#fee3d8] font-semibold py-2 px-6 rounded-full shadow hover:scale-105 transition flex items-center gap-2"
+>
+  <FolderOpen size={16} /> Our Work
+</Link>
           </div>
         </div>
       </div>

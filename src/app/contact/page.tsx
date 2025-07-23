@@ -1,11 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
+import Footer from "../components/Footer";
+import bgImage from "../components/bg.jpg";
+
+type Language = "en" | "ar";
 
 export default function ContactPage() {
   const [submitting, setSubmitting] = useState(false);
+  const [lang, setLang] = useState<Language>("en");
+
+  useEffect(() => {
+    const browserLang = navigator.language || navigator.languages[0];
+    if (browserLang.startsWith("ar")) {
+      setLang("ar");
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -27,71 +39,118 @@ export default function ContactPage() {
     if (response.ok) {
       window.location.href = "/thank-you";
     } else {
-      alert("Something went wrong. Please try again.");
+      alert(lang === "ar" ? "حدث خطأ ما. حاول مرة أخرى." : "Something went wrong. Please try again.");
     }
   };
 
+  const t = {
+    en: {
+      title: "Let’s Talk",
+      subtitle: "We don’t do packages. We build marketing strategies tailored to your business.",
+      name: "Your Name",
+      email: "Email Address",
+      phone: "Phone Number",
+      message: "Tell us about your project",
+      submit: "Get Your Custom Strategy",
+      submitting: "Submitting...",
+      whatsapp: "Chat on WhatsApp",
+    },
+    ar: {
+      title: "تواصل معنا",
+      subtitle: "نحن لا نقدم باقات جاهزة، بل نبني استراتيجيات تسويق مخصصة لعملك.",
+      name: "اسمك",
+      email: "البريد الإلكتروني",
+      phone: "رقم الهاتف",
+      message: "أخبرنا عن مشروعك",
+      submit: "احصل على استراتيجيتك المخصصة",
+      submitting: "جارٍ الإرسال...",
+      whatsapp: "تحدث معنا على واتساب",
+    },
+  };
+
+  const tr = t[lang];
+
   return (
-    <section className="min-h-screen bg-[#0f0215] text-[#fee3d8] px-6 py-24">
-      <div className="max-w-3xl mx-auto space-y-12 text-center">
-        <Link
-          href="/"
-          className="text-6xl font-bold transition text-[#fee3d8] mb-16"
-          style={{ fontFamily: "'Dancing Script', cursive" }}
-        >
-          N
-        </Link>
+    <>
+      <section
+        className={`relative min-h-screen bg-[#0f0215] text-[#fee3d8] px-6 pb-32 pt-24 overflow-hidden ${
+          lang === "ar" ? "text-right" : "text-left"
+        }`}
+      >
+        {/* Background image with blur */}
+        <div
+          className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 z-0"
+          style={{ backgroundImage: `url(${bgImage.src})` }}
+        ></div>
 
-        <div>
-          <h1 className="text-4xl md:text-5xl font-cocogoose font-bold mb-4">Let’s Talk</h1>
-          <p className="text-xl text-[#fee3d8]/80">
-            We don’t do packages. We build marketing strategies tailored to your business.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6 text-left">
-          <input
-            type="text"
-            name="name"
-            placeholder="Your Name"
-            required
-            className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60"
-          />
-          <input
-            type="tel"
-            name="phone"
-            placeholder="Phone Number"
-            required
-            className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60"
-          />
-          <textarea
-            name="message"
-            placeholder="Tell us about your project"
-            rows={4}
-            className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60"
-          />
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="bg-[#290f4c] hover:bg-[#3a1b63] text-[#fee3d8] px-6 py-3 rounded-xl font-semibold transition-all w-full"
+        {/* Content */}
+        <div className="relative z-10 max-w-3xl mx-auto space-y-12 text-center">
+          <Link
+            href="/"
+            className="text-6xl font-bold transition text-[#fee3d8] mb-16"
+            style={{ fontFamily: "'Dancing Script', cursive" }}
           >
-            {submitting ? "Submitting..." : "Get Your Custom Strategy"}
-          </button>
-        </form>
+            N
+          </Link>
 
-        <div className="pt-6">
-          <a
-            href="https://wa.me/201283052272"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-full font-semibold transition"
-          >
-            <MessageCircle size={18} />
-            Chat on WhatsApp
-          </a>
+          <div>
+            <h1 className="text-4xl md:text-5xl font-cocogoose font-bold mb-4">{tr.title}</h1>
+            <p className="text-xl text-[#fee3d8]/80">{tr.subtitle}</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <input
+              type="text"
+              name="name"
+              placeholder={tr.name}
+              required
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60"
+            />
+            <input
+              type="email"
+              name="email"
+              placeholder={tr.email}
+              required
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60"
+            />
+            <input
+              type="tel"
+              name="phone"
+              placeholder={tr.phone}
+              required
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60"
+            />
+            <textarea
+              name="message"
+              placeholder={tr.message}
+              rows={4}
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60"
+            />
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="bg-[#290f4c] hover:bg-[#3a1b63] text-[#fee3d8] px-6 py-3 rounded-xl font-semibold transition-all w-full"
+            >
+              {submitting ? tr.submitting : tr.submit}
+            </button>
+          </form>
+
+          <div className="pt-6">
+            <a
+              href="https://wa.me/201283052272"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-full font-semibold transition"
+            >
+              <MessageCircle size={18} />
+              {tr.whatsapp}
+            </a>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <Footer />
+    </>
   );
 }
