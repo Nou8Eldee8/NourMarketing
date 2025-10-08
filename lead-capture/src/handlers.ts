@@ -88,7 +88,7 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
 
       await env.DB.prepare(
         `INSERT INTO leads 
-          (lead_id, business_name, name, email, phone, government, budget, has_website, message, assigned_to, created_at)
+          (id, business_name, name, email, phone, government, budget, has_website, message, assigned_to, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
       )
         .bind(
