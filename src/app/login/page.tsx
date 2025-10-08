@@ -12,7 +12,7 @@ interface User {
 
 interface LoginResponse {
   success: boolean;
-  data?: User;
+  data?: { user: User };
   error?: string;
 }
 
@@ -24,14 +24,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Set motivational message based on current time
   useEffect(() => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) {
-      setMessage("Good Morning, kill it today!");
-    } else {
-      setMessage("Night Owl, a sale never knows a time.");
-    }
+    setMessage(
+      hour >= 5 && hour < 12
+        ? "Good Morning, kill it today!"
+        : "Night Owl, a sale never knows a time."
+    );
   }, []);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
@@ -48,18 +47,15 @@ export default function LoginPage() {
 
       const data: LoginResponse = await res.json();
 
-      if (!res.ok || !data.success || !data.data) {
+      if (!res.ok || !data.success || !data.data?.user) {
         throw new Error(data.error || "Invalid credentials");
       }
 
-      const user = data.data;
+      const user = data.data.user;
       localStorage.setItem("user", JSON.stringify(user));
 
-      if (user.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/sales-dashboard");
-      }
+      if (user.role === "admin") router.push("/admin");
+      else router.push("/sales-dashboard");
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -68,16 +64,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="flex flex-col justify-center items-center min-h-screen text-gray-100"
-      style={{ fontFamily: "'Cairo', sans-serif" }}
-    >
-      {/* Import Cairo font */}
+    <div className="flex flex-col justify-center items-center min-h-screen text-gray-100" style={{ fontFamily: "'Cairo', sans-serif" }}>
       <style>
         {`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');`}
       </style>
 
-      {/* Logo */}
       <div className="mb-12">
         <Link
           href="/"
@@ -88,14 +79,8 @@ export default function LoginPage() {
         </Link>
       </div>
 
-      {/* Login Form */}
-      <form
-        onSubmit={handleLogin}
-        className="bg-purple-800 p-8 rounded-2xl shadow-md w-full max-w-sm space-y-4 transition-all hover:shadow-[0_0_20px_5px_rgba(254,227,216,0.4)]"
-      >
-        <h1 className="text-2xl font-bold text-center text-[#fee3d8]">
-          Admin / Sales Login
-        </h1>
+      <form onSubmit={handleLogin} className="bg-purple-800 p-8 rounded-2xl shadow-md w-full max-w-sm space-y-4 transition-all hover:shadow-[0_0_20px_5px_rgba(254,227,216,0.4)]">
+        <h1 className="text-2xl font-bold text-center text-[#fee3d8]">Admin / Sales Login</h1>
 
         <input
           type="text"
@@ -126,11 +111,7 @@ export default function LoginPage() {
         {error && <p className="text-center text-red-400 text-sm">{error}</p>}
       </form>
 
-      {/* Motivational message */}
-      <p
-        className="mt-6 text-center text-2xl text-[#fee3d8] transition-transform duration-500 hover:scale-105"
-        style={{ fontFamily: "'Dancing Script', cursive" }}
-      >
+      <p className="mt-6 text-center text-2xl text-[#fee3d8] transition-transform duration-500 hover:scale-105" style={{ fontFamily: "'Dancing Script', cursive" }}>
         {message}
       </p>
     </div>

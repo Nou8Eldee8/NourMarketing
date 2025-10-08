@@ -13,20 +13,18 @@ export async function handleLogin(req: Request, env: Env): Promise<Response> {
       return jsonResponse({ success: false, error: "Missing username or password" }, 400);
     }
 
-    // Fetch user by username
     const userRecord = await env.DB.prepare(
       "SELECT id, username, role, password FROM users WHERE username = ?"
     )
       .bind(username)
       .first<{ id: number; username: string; role: string; password: string }>();
 
-    // Compare password manually
     if (!userRecord || userRecord.password?.trim() !== password.trim()) {
       return jsonResponse({ success: false, error: "Invalid credentials" }, 401);
     }
 
-    const { password: _pw, ...user } = userRecord; // remove password
-    return jsonResponse({ success: true, data: user });
+    const { password: _pw, ...user } = userRecord;
+    return jsonResponse({ success: true, data: { user } });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unexpected error";
     return jsonResponse({ success: false, error: message }, 500);
@@ -36,7 +34,6 @@ export async function handleLogin(req: Request, env: Env): Promise<Response> {
 /* --------------------------- LEADS HANDLER --------------------------- */
 export async function handleLeads(req: Request, env: Env): Promise<Response> {
   try {
-    // --- GET leads
     if (req.method === "GET") {
       const url = new URL(req.url);
       const role = url.searchParams.get("role");
@@ -51,18 +48,18 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
         leads = result.results ?? [];
       } else if (role === "sales") {
         if (!userId) return jsonResponse({ success: false, error: "Missing user_id" }, 400);
+
         const result = await env.DB.prepare("SELECT * FROM leads WHERE assigned_to = ?")
-          .bind(userId)
+          .bind(Number(userId)) // ensure integer match
           .all<Lead>();
         leads = result.results ?? [];
       } else {
         return jsonResponse({ success: false, error: "Invalid role" }, 400);
       }
 
-      return jsonResponse({ success: true, data: leads }); // <-- flattened array
+      return jsonResponse({ success: true, data: leads });
     }
 
-    // --- POST new lead
     if (req.method === "POST") {
       const data: unknown = await req.json();
       if (!data || typeof data !== "object" || !("business_name" in data)) {
@@ -82,10 +79,11 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
       const lastAssigned = await env.DB.prepare("SELECT assigned_to FROM leads ORDER BY id DESC LIMIT 1")
         .first<{ assigned_to: number }>();
       const nextIndex = lastAssigned
-        ? (sales.findIndex((s) => s.id === lastAssigned.assigned_to) + 1) % sales.length
+        ? (sales.findIndex((s) => s.id === Math.floor(lastAssigned.assigned_to)) + 1) % sales.length
         : 0;
       const assignedTo = sales[nextIndex].id;
 
+      // Insert new lead
       await env.DB.prepare(
         `INSERT INTO leads 
           (id, business_name, name, email, phone, government, budget, has_website, message, assigned_to, created_at)
@@ -101,14 +99,13 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
           lead.budget ?? 0,
           lead.has_website ? 1 : 0,
           lead.message ?? "",
-          assignedTo
+          assignedTo, // already integer
         )
         .run();
 
       return jsonResponse({ success: true, data: { assignedTo } });
     }
 
-    // --- Unsupported method
     return jsonResponse({ success: false, error: "Invalid method" }, 405);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unexpected error";
