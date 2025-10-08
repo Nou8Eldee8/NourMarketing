@@ -12,13 +12,11 @@ export default function ContactPage() {
   const [submitting, setSubmitting] = useState(false);
   const [lang, setLang] = useState<Language>("en");
 
-  // ✅ Detect browser language
   useEffect(() => {
     const browserLang = navigator.language || navigator.languages[0];
     if (browserLang.startsWith("ar")) setLang("ar");
   }, []);
 
-  // ✅ Wait until fbq is ready
   const waitForFbq = () =>
     new Promise<void>((resolve) => {
       const check = () => {
@@ -28,7 +26,6 @@ export default function ContactPage() {
       check();
     });
 
-  // ✅ Form submission handler
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
@@ -36,26 +33,31 @@ export default function ContactPage() {
     const form = e.currentTarget;
     const data = new FormData(form);
 
+    const payload = {
+      name: data.get("name"),
+      email: data.get("email"),
+      phone: data.get("phone"),
+      message: data.get("message"),
+      business_name: data.get("business_name"),
+      government: data.get("government"),
+      budget: Number(data.get("budget")),
+      has_website: data.get("has_website") === "on",
+    };
+
     try {
-      const response = await fetch("https://formspree.io/f/xgvzenbe", {
+      const response = await fetch("/api/lead", {
         method: "POST",
-        body: data,
-        headers: { Accept: "application/json" },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        // Wait for fbq to load before firing event
-        await waitForFbq();
+      if (!response.ok) throw new Error("Form submission failed");
 
-        // ✅ Fire Lead event
-        (window as any).fbq("track", "Lead");
-        console.log("✅ Meta Pixel Lead event fired!");
+      await waitForFbq();
+      (window as any).fbq("track", "Lead");
 
-        // Redirect to thank-you page
-        window.location.href = "/thank-you";
-      } else {
-        throw new Error("Form submission failed");
-      }
+      console.log("✅ Meta Pixel Lead event fired!");
+      window.location.href = "/thank-you";
     } catch (error) {
       console.error("Form submission error:", error);
       alert(
@@ -68,7 +70,6 @@ export default function ContactPage() {
     }
   };
 
-  // ✅ Translations
   const t = {
     en: {
       title: "Let’s Talk",
@@ -77,6 +78,10 @@ export default function ContactPage() {
       name: "Your Name",
       email: "Email Address",
       phone: "Phone Number",
+      business: "Business Name",
+      government: "Select Your Governorate",
+      budget: "Estimated Monthly Budget (EGP)",
+      website: "Do you have a website?",
       message: "Tell us about your project",
       submit: "Get Your Custom Strategy",
       submitting: "Submitting...",
@@ -89,6 +94,10 @@ export default function ContactPage() {
       name: "اسمك",
       email: "البريد الإلكتروني",
       phone: "رقم الهاتف",
+      business: "اسم النشاط التجاري",
+      government: "المحافظة",
+      budget: "الميزانية الشهرية المتوقعة (جنيه)",
+      website: "هل لديك موقع إلكتروني؟",
       message: "أخبرنا عن مشروعك",
       submit: "احصل على استراتيجيتك المخصصة",
       submitting: "جارٍ الإرسال...",
@@ -105,13 +114,11 @@ export default function ContactPage() {
           lang === "ar" ? "text-right" : "text-left"
         }`}
       >
-        {/* ---- Background ---- */}
         <div
           className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 z-0"
           style={{ backgroundImage: `url(${bgImage.src})` }}
         ></div>
 
-        {/* ---- Content ---- */}
         <div className="relative z-10 max-w-3xl mx-auto space-y-12 text-center">
           <Link
             href="/"
@@ -131,11 +138,20 @@ export default function ContactPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <input
               type="text"
+              name="business_name"
+              placeholder={tr.business}
+              required
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+            />
+
+            <input
+              type="text"
               name="name"
               placeholder={tr.name}
               required
               className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
+
             <input
               type="email"
               name="email"
@@ -143,6 +159,7 @@ export default function ContactPage() {
               required
               className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
+
             <input
               type="tel"
               name="phone"
@@ -150,6 +167,32 @@ export default function ContactPage() {
               required
               className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
+
+            <select
+              name="government"
+              required
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+            >
+              <option value="">{tr.government}</option>
+              <option value="Cairo">Cairo</option>
+              <option value="Alexandria">Alexandria</option>
+              <option value="Giza">Giza</option>
+              <option value="Dakahlia">Dakahlia</option>
+            </select>
+
+            <input
+              type="number"
+              name="budget"
+              placeholder={tr.budget}
+              required
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+            />
+
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="has_website" className="accent-[#fee3d8]" />
+              <span>{tr.website}</span>
+            </label>
+
             <textarea
               name="message"
               placeholder={tr.message}
@@ -170,7 +213,6 @@ export default function ContactPage() {
             </button>
           </form>
 
-          {/* ---- WhatsApp CTA ---- */}
           <div className="pt-6">
             <a
               href="https://wa.me/201283052272"
