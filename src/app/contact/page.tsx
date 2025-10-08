@@ -26,19 +26,31 @@ export default function ContactPage() {
     const form = e.currentTarget;
     const data = new FormData(form);
 
-    const response = await fetch("https://formspree.io/f/xgvzenbe", {
-      method: "POST",
-      body: data,
-      headers: {
-        Accept: "application/json",
-      },
-    });
+    try {
+      const response = await fetch("https://formspree.io/f/xgvzenbe", {
+        method: "POST",
+        body: data,
+        headers: {
+          Accept: "application/json",
+        },
+      });
 
-    setSubmitting(false);
+      setSubmitting(false);
 
-    if (response.ok) {
-      window.location.href = "/thank-you";
-    } else {
+      if (response.ok) {
+        // ✅ Fire Meta Pixel Lead event
+        if (typeof window !== "undefined" && (window as any).fbq) {
+          (window as any).fbq("track", "Lead");
+        }
+
+        // Redirect after successful form submission
+        window.location.href = "/thank-you";
+      } else {
+        alert(lang === "ar" ? "حدث خطأ ما. حاول مرة أخرى." : "Something went wrong. Please try again.");
+      }
+    } catch (error) {
+      console.error("Form submission error:", error);
+      setSubmitting(false);
       alert(lang === "ar" ? "حدث خطأ ما. حاول مرة أخرى." : "Something went wrong. Please try again.");
     }
   };
