@@ -12,62 +12,63 @@ export default function ContactPage() {
   const [submitting, setSubmitting] = useState(false);
   const [lang, setLang] = useState<Language>("en");
 
-  // Detect browser language once on load
+  // ✅ Detect browser language
   useEffect(() => {
     const browserLang = navigator.language || navigator.languages[0];
-    if (browserLang.startsWith("ar")) {
-      setLang("ar");
-    }
+    if (browserLang.startsWith("ar")) setLang("ar");
   }, []);
 
-  // Form submit handler
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  setSubmitting(true);
-
-  const form = e.currentTarget;
-  const data = new FormData(form);
-
-  try {
-    const response = await fetch("https://formspree.io/f/xgvzenbe", {
-      method: "POST",
-      body: data,
-      headers: { Accept: "application/json" },
+  // ✅ Wait until fbq is ready
+  const waitForFbq = () =>
+    new Promise<void>((resolve) => {
+      const check = () => {
+        if (typeof (window as any).fbq === "function") resolve();
+        else setTimeout(check, 200);
+      };
+      check();
     });
 
-    setSubmitting(false);
+  // ✅ Form submission handler
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitting(true);
 
-    if (response.ok) {
-      // Wait until fbq is ready
-      const waitForFbq = () =>
-        new Promise<void>((resolve) => {
-          const check = () => {
-            if (typeof (window as any).fbq === "function") resolve();
-            else setTimeout(check, 200);
-          };
-          check();
-        });
+    const form = e.currentTarget;
+    const data = new FormData(form);
 
-      await waitForFbq();
+    try {
+      const response = await fetch("https://formspree.io/f/xgvzenbe", {
+        method: "POST",
+        body: data,
+        headers: { Accept: "application/json" },
+      });
 
-      // Fire Lead event
-      (window as any).fbq("track", "Lead");
-      console.log("✅ Meta Pixel Lead event fired!");
+      if (response.ok) {
+        // Wait for fbq to load before firing event
+        await waitForFbq();
 
-      // Redirect
-      window.location.href = "/thank-you";
-    } else {
-      alert(lang === "ar" ? "حدث خطأ ما. حاول مرة أخرى." : "Something went wrong. Please try again.");
+        // ✅ Fire Lead event
+        (window as any).fbq("track", "Lead");
+        console.log("✅ Meta Pixel Lead event fired!");
+
+        // Redirect to thank-you page
+        window.location.href = "/thank-you";
+      } else {
+        throw new Error("Form submission failed");
+      }
+    } catch (error) {
+      console.error("Form submission error:", error);
+      alert(
+        lang === "ar"
+          ? "حدث خطأ ما. حاول مرة أخرى."
+          : "Something went wrong. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
     }
-  } catch (error) {
-    console.error("Form submission error:", error);
-    setSubmitting(false);
-    alert(lang === "ar" ? "حدث خطأ ما. حاول مرة أخرى." : "Something went wrong. Please try again.");
-  }
-};
+  };
 
-
-  // Translation strings
+  // ✅ Translations
   const t = {
     en: {
       title: "Let’s Talk",
@@ -104,13 +105,13 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
           lang === "ar" ? "text-right" : "text-left"
         }`}
       >
-        {/* --- Background --- */}
+        {/* ---- Background ---- */}
         <div
           className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 z-0"
           style={{ backgroundImage: `url(${bgImage.src})` }}
         ></div>
 
-        {/* --- Content --- */}
+        {/* ---- Content ---- */}
         <div className="relative z-10 max-w-3xl mx-auto space-y-12 text-center">
           <Link
             href="/"
@@ -154,7 +155,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
               placeholder={tr.message}
               rows={4}
               className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
-            />
+            ></textarea>
 
             <button
               type="submit"
@@ -169,7 +170,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
             </button>
           </form>
 
-          {/* WhatsApp CTA */}
+          {/* ---- WhatsApp CTA ---- */}
           <div className="pt-6">
             <a
               href="https://wa.me/201283052272"
