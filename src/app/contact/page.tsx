@@ -21,52 +21,51 @@ export default function ContactPage() {
   }, []);
 
   // Form submit handler
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSubmitting(true);
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  setSubmitting(true);
 
-    const form = e.currentTarget;
-    const data = new FormData(form);
+  const form = e.currentTarget;
+  const data = new FormData(form);
 
-    try {
-      const response = await fetch("https://formspree.io/f/xgvzenbe", {
-        method: "POST",
-        body: data,
-        headers: {
-          Accept: "application/json",
-        },
-      });
+  try {
+    const response = await fetch("https://formspree.io/f/xgvzenbe", {
+      method: "POST",
+      body: data,
+      headers: { Accept: "application/json" },
+    });
 
-      setSubmitting(false);
+    setSubmitting(false);
 
-      if (response.ok) {
-        // ✅ Fire Meta Pixel "Lead" event safely
-        if (typeof window !== "undefined" && (window as any).fbq) {
-          (window as any).fbq("track", "Lead");
-          console.log("Meta Pixel Lead event fired ✅");
-        } else {
-          console.warn("Meta Pixel not initialized ⚠️");
-        }
+    if (response.ok) {
+      // Wait until fbq is ready
+      const waitForFbq = () =>
+        new Promise<void>((resolve) => {
+          const check = () => {
+            if (typeof (window as any).fbq === "function") resolve();
+            else setTimeout(check, 200);
+          };
+          check();
+        });
 
-        // ✅ Redirect after successful submission
-        window.location.href = "/thank-you";
-      } else {
-        alert(
-          lang === "ar"
-            ? "حدث خطأ ما. حاول مرة أخرى."
-            : "Something went wrong. Please try again."
-        );
-      }
-    } catch (error) {
-      console.error("Form submission error:", error);
-      setSubmitting(false);
-      alert(
-        lang === "ar"
-          ? "حدث خطأ ما. حاول مرة أخرى."
-          : "Something went wrong. Please try again."
-      );
+      await waitForFbq();
+
+      // Fire Lead event
+      (window as any).fbq("track", "Lead");
+      console.log("✅ Meta Pixel Lead event fired!");
+
+      // Redirect
+      window.location.href = "/thank-you";
+    } else {
+      alert(lang === "ar" ? "حدث خطأ ما. حاول مرة أخرى." : "Something went wrong. Please try again.");
     }
-  };
+  } catch (error) {
+    console.error("Form submission error:", error);
+    setSubmitting(false);
+    alert(lang === "ar" ? "حدث خطأ ما. حاول مرة أخرى." : "Something went wrong. Please try again.");
+  }
+};
+
 
   // Translation strings
   const t = {
