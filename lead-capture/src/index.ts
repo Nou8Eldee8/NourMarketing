@@ -1,41 +1,67 @@
-export interface Env {
-  DB: D1Database;
-}
+import { Env } from "./types";
+import { handleLogin, handleLeads } from "./handlers";
 
-interface Lead {
-  business_name: string;
-  government?: string;
-  budget?: number;
-  has_website?: boolean;
-}
-
+/**
+ * ✅ TypeScript-safe Worker entry
+ */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method !== "POST") {
-      return new Response("Method Not Allowed", { status: 405 });
-    }
-
-    const body = (await request.json()) as Lead;
-
-    const { business_name, government, budget, has_website } = body;
-
-    if (!business_name) {
-      return new Response("Missing business_name", { status: 400 });
-    }
-
     try {
-      await env.DB.prepare(
-        `INSERT INTO leads (business_name, government, budget, has_website) VALUES (?, ?, ?, ?)`
-      )
-        .bind(business_name, government, budget, has_website)
-        .run();
+      const url = new URL(request.url);
+      const { pathname } = url;
 
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      // Route: Login
+      if (pathname === "/api/login" && request.method === "POST") {
+        const response = await handleLogin(request, env);
+        return ensureJsonResponse(response);
+      }
+
+      // Route: Leads (GET for fetching, POST for creating)
+      if (pathname === "/api/lead") {
+        if (request.method === "GET" || request.method === "POST") {
+          const response = await handleLeads(request, env);
+          return ensureJsonResponse(response);
+        }
+        return jsonResponse({ error: "Method not allowed" }, 405);
+      }
+
+      // Route: Admin (GET all leads)
+      if (pathname === "/api/admin" && request.method === "GET") {
+        const response = await handleLeads(request, env);
+        return ensureJsonResponse(response);
+      }
+
+      // Default: Not Found
+      return jsonResponse({ error: "Not found" }, 404);
+
     } catch (err) {
-      console.error("Database Error:", err);
-      return new Response("Database Error", { status: 500 });
+      console.error("Worker error:", err);
+      return jsonResponse(
+        { error: err instanceof Error ? err.message : "Internal server error" },
+        500
+      );
     }
   },
 };
+
+/* -------------------------------------------------------------------------- */
+/*                              🔧 Helper Functions                           */
+/* -------------------------------------------------------------------------- */
+
+/** Wraps any response to ensure JSON */
+function ensureJsonResponse(res: Response): Response {
+  const contentType = res.headers.get("Content-Type");
+  if (!contentType?.includes("application/json")) {
+    console.warn("⚠️ Handler did not return JSON, wrapping it manually.");
+    return jsonResponse({ message: res.statusText || "OK" }, res.status);
+  }
+  return res;
+}
+
+/** Creates a JSON response with correct headers */
+function jsonResponse(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}

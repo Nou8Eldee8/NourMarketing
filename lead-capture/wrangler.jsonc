@@ -16,7 +16,14 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	"d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nour-leads",
+      "database_id": "82edcad3-020e-46a3-99b6-0148ec5c65e2"
+    }
+  ]
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
