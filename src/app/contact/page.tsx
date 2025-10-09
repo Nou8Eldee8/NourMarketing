@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ArrowLeft } from "lucide-react";
 import Footer from "../components/Footer";
 import bgImage from "../components/bg.jpg";
 
@@ -75,33 +75,35 @@ export default function ContactPage() {
       title: "Let’s Talk",
       subtitle:
         "We don’t do packages. We build marketing strategies tailored to your business.",
-      name: "Your Name",
-      email: "Email Address",
-      phone: "Phone Number",
-      business: "Business Name",
-      government: "Select Your Governorate",
-      budget: "Estimated Monthly Budget (EGP)",
-      website: "Do you have a website?",
-      message: "Tell us about your project",
-      submit: "Get Your Custom Strategy",
-      submitting: "Submitting...",
-      whatsapp: "Chat on WhatsApp",
+      name: "Full Name | الاسم الكامل",
+      email: "Email Address | البريد الإلكتروني",
+      phone: "Phone Number | رقم الهاتف",
+      business: "Business Name | اسم النشاط التجاري",
+      government: "Governorate | المحافظة",
+      budget: "Estimated Monthly Budget (EGP) | الميزانية الشهرية المتوقعة",
+      website: "Do you have a website? | هل لديك موقع إلكتروني؟",
+      message: "Tell us about your project | أخبرنا عن مشروعك",
+      submit: "Get Your Custom Strategy | احصل على استراتيجيتك المخصصة",
+      submitting: "Submitting... | جارٍ الإرسال...",
+      whatsapp: "Chat on WhatsApp | تحدث معنا على واتساب",
+      back: "← Back | رجوع",
     },
     ar: {
       title: "تواصل معنا",
       subtitle:
         "نحن لا نقدم باقات جاهزة، بل نبني استراتيجيات تسويق مخصصة لعملك.",
-      name: "اسمك",
-      email: "البريد الإلكتروني",
-      phone: "رقم الهاتف",
-      business: "اسم النشاط التجاري",
-      government: "المحافظة",
-      budget: "الميزانية الشهرية المتوقعة (جنيه)",
-      website: "هل لديك موقع إلكتروني؟",
-      message: "أخبرنا عن مشروعك",
-      submit: "احصل على استراتيجيتك المخصصة",
-      submitting: "جارٍ الإرسال...",
-      whatsapp: "تحدث معنا على واتساب",
+      name: "Full Name | الاسم الكامل",
+      email: "Email Address | البريد الإلكتروني",
+      phone: "Phone Number | رقم الهاتف",
+      business: "Business Name | اسم النشاط التجاري",
+      government: "Governorate | المحافظة",
+      budget: "Estimated Monthly Budget (EGP) | الميزانية الشهرية المتوقعة",
+      website: "Do you have a website? | هل لديك موقع إلكتروني؟",
+      message: "Tell us about your project | أخبرنا عن مشروعك",
+      submit: "Get Your Custom Strategy | احصل على استراتيجيتك المخصصة",
+      submitting: "Submitting... | جارٍ الإرسال...",
+      whatsapp: "Chat on WhatsApp | تحدث معنا على واتساب",
+      back: "← Back | رجوع",
     },
   };
 
@@ -114,11 +116,26 @@ export default function ContactPage() {
           lang === "ar" ? "text-right" : "text-left"
         }`}
       >
+        {/* ✅ Fixed Back Button (always visible top-left) */}
+        <button
+          onClick={() =>
+            window.history.length > 1
+              ? window.history.back()
+              : (window.location.href = "/")
+          }
+          className="fixed top-6 left-6 z-50 flex items-center gap-2 text-[#fee3d8]/80 hover:text-[#fee3d8] transition text-sm md:text-base"
+        >
+          <ArrowLeft size={20} />
+          {tr.back}
+        </button>
+
+        {/* Background Blur */}
         <div
           className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 z-0"
           style={{ backgroundImage: `url(${bgImage.src})` }}
         ></div>
 
+        {/* Content */}
         <div className="relative z-10 max-w-3xl mx-auto space-y-12 text-center">
           <Link
             href="/"
@@ -135,7 +152,7 @@ export default function ContactPage() {
             <p className="text-xl text-[#fee3d8]/80">{tr.subtitle}</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 text-left">
             <input
               type="text"
               name="business_name"
@@ -167,18 +184,17 @@ export default function ContactPage() {
               required
               className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
+<select
+  name="government"
+  required
+  className="w-full p-4 bg-[#2D0A3D]/80 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+>
+  <option value="">{tr.government}</option>
+  <option value="Cairo">Cairo | القاهرة</option>
+  <option value="Alexandria">Alexandria | الإسكندرية</option>
+  <option value="Giza">Giza | الجيزة</option>
+</select>
 
-            <select
-              name="government"
-              required
-              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
-            >
-              <option value="">{tr.government}</option>
-              <option value="Cairo">Cairo</option>
-              <option value="Alexandria">Alexandria</option>
-              <option value="Giza">Giza</option>
-              <option value="Dakahlia">Dakahlia</option>
-            </select>
 
             <input
               type="number"

@@ -53,7 +53,7 @@ export default function Header() {
           <NavigationMenu className="hidden md:flex flex-1 justify-center">
             <NavigationMenuList className="flex items-center gap-6 font-cocogoose text-sm text-[#fee3d8]">
               {[
-                { href: "/portfolio", label: "Our Work" },
+                { href: "https://drive.google.com/file/d/1kZSLtaSd9zCt0-dPfq6bDBe0ZQygkc91/view?usp=sharing", label: "Our Work" },
                 { href: "#our-story", label: "Our Story" },
                 { href: "/contact", label: "Let’s Talk" },
                 { href: "/about", label: "About Us" },
