@@ -1,22 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface Lead {
-  id?: string;
+  id: string;
   lead_id?: string;
   business_name: string;
   name?: string;
   email?: string;
   phone?: string;
   government?: string;
-  budget?: number;
+  budget?: number | string;
   has_website?: boolean;
   message?: string;
   assigned_to?: string;
   created_at?: string;
+  status?: string;
 }
 
 interface User {
@@ -37,11 +38,23 @@ interface ApiResponse {
 export default function AdminPage() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("All");
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load user from localStorage on mount
+  const statuses = [
+    "All",
+    "Not Contacted",
+    "First Call",
+    "Follow up",
+    "Waiting for proposal",
+    "Proposal approved",
+    "Done Deal",
+  ];
+
+  // 🧠 Load user + fetch leads
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
@@ -59,16 +72,12 @@ export default function AdminPage() {
     }
   }, [router]);
 
-  // Fetch leads from API
   async function fetchLeads(currentUser: User) {
     try {
-      const url = `/api/lead?role=${currentUser.role}&user_id=${currentUser.id}`;
-      const res = await fetch(url);
+      const res = await fetch(`/api/lead?role=${currentUser.role}&user_id=${currentUser.id}`);
       const json = (await res.json()) as ApiResponse;
 
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Failed to fetch leads");
-      }
+      if (!res.ok || !json.success) throw new Error(json.error || "Failed to fetch leads");
 
       const leadsArray: Lead[] = Array.isArray(json.data?.data) ? json.data.data : [];
       setLeads(leadsArray);
@@ -79,13 +88,68 @@ export default function AdminPage() {
     }
   }
 
+  // 🔄 Update status
+  const handleStatusChange = async (leadId: string, newStatus: string) => {
+    try {
+      const res = await fetch("/api/lead", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: leadId, status: newStatus }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === leadId ? { ...lead, status: newStatus } : lead
+        )
+      );
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      alert("Failed to update status");
+    }
+  };
+
+  // 🔍 Search + Filter + Sort
+  const filteredLeads = useMemo(() => {
+    let result = [...leads];
+
+    // Search by name, phone, or business
+    if (searchTerm.trim()) {
+      const lower = searchTerm.toLowerCase();
+      result = result.filter(
+        (lead) =>
+          lead.business_name?.toLowerCase().includes(lower) ||
+          lead.name?.toLowerCase().includes(lower) ||
+          lead.phone?.includes(lower)
+      );
+    }
+
+    // Filter by status
+    if (filterStatus !== "All") {
+      result = result.filter((lead) => {
+        const status = lead.status?.toLowerCase().trim();
+        const filter = filterStatus.toLowerCase().trim();
+        return (
+          status === filter ||
+          (status === "uncontacted" && filter === "not contacted") ||
+          (status === "not contacted" && filter === "uncontacted")
+        );
+      });
+    }
+
+    return result;
+  }, [leads, searchTerm, filterStatus]);
+
   if (loading) return <p className="text-center mt-8">Loading leads...</p>;
   if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
   if (!user) return null;
 
   return (
-    <div style={{ fontFamily: "'Cairo', sans-serif" }} className="p-8 max-w-full overflow-x-auto">
-      {/* Import Cairo font */}
+    <div
+      style={{ fontFamily: "'Cairo', sans-serif" }}
+      className="p-8 max-w-full overflow-x-auto text-gray-100"
+    >
       <style>
         {`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');`}
       </style>
@@ -94,64 +158,115 @@ export default function AdminPage() {
       <div className="flex justify-center mb-16">
         <Link
           href="/"
-          className="text-6xl font-bold transition text-[#fee3d8]"
+          className="text-6xl font-bold text-[#fee3d8]"
           style={{ fontFamily: "'Dancing Script', cursive" }}
         >
           N
         </Link>
       </div>
 
-      {/* Header and Logout */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">
-          {user.role === "admin" ? "Admin Dashboard" : "Sales Dashboard"}
-        </h1>
-        <button
-          onClick={() => {
-            localStorage.removeItem("user");
-            router.push("/login");
-          }}
-          className="bg-red-500 text-white px-4 py-2 rounded"
-        >
-          Logout
-        </button>
+      {/* Header + Filters */}
+      <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+
+        <div className="flex gap-4">
+          <input
+            type="text"
+            placeholder="Search by name or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="p-3 w-72 rounded-lg border border-purple-600 bg-purple-700 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="bg-purple-700 text-white border border-purple-500 rounded px-3 py-2"
+          >
+            {statuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => {
+              localStorage.removeItem("user");
+              router.push("/login");
+            }}
+            className="bg-red-500 text-white px-4 py-2 rounded"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* Leads Table */}
-      {leads.length === 0 ? (
- <p className="text-center text-gray-200">No leads found.</p>
-) : (
-  <table className="w-full table-auto border-collapse border border-purple-600 text-left bg-purple-700">
-    <thead className="bg-purple-600">
-      <tr>
-        <th className="px-4 py-2 border border-purple-500 text-gray-100">Lead ID</th>
-        <th className="px-4 py-2 border border-purple-500 text-gray-100">Business Name</th>
-        <th className="px-4 py-2 border border-purple-500 text-gray-100">Name</th>
-        <th className="px-4 py-2 border border-purple-500 text-gray-100">Phone</th>
-        <th className="px-4 py-2 border border-purple-500 text-gray-100">Assigned To</th>
-        <th className="px-4 py-2 border border-purple-500 text-gray-100">Budget</th>
-        <th className="px-4 py-2 border border-purple-500 text-gray-100">Has Website</th>
-        <th className="px-4 py-2 border border-purple-500 text-gray-100">Created At</th>
-      </tr>
-    </thead>
-    <tbody>
-      {leads.map((lead, idx) => (
-        <tr
-          key={lead.id ?? idx}
-          className={idx % 2 === 0 ? "bg-purple-700" : "bg-purple-600"}
+      {filteredLeads.length === 0 ? (
+        <p className="text-center text-gray-300">No leads found.</p>
+      ) : (
+        <table className="w-full table-auto border-collapse border border-purple-600 text-left rounded-lg overflow-hidden">
+          <thead className="bg-purple-600">
+            <tr>
+              {[
+                "Business Name",
+                "Name",
+                "Phone",
+                "Assigned To",
+                "Budget",
+                "Website",
+                "Status",
+                "Created At",
+              ].map((label) => (
+                <th
+                  key={label}
+                  className="px-4 py-2 border border-purple-500 text-gray-100"
+                >
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+ <tbody>
+  {filteredLeads.map((lead, idx) => (
+    <tr
+      key={lead.id}
+      className={`cursor-pointer ${
+        idx % 2 === 0
+          ? "bg-purple-700 hover:bg-purple-600"
+          : "bg-purple-600 hover:bg-purple-500"
+      }`}
+      onClick={() => router.push(`/leads/${lead.id}`)}
+    >
+      <td className="px-4 py-2 border border-purple-500">{lead.business_name}</td>
+      <td className="px-4 py-2 border border-purple-500">{lead.name || "-"}</td>
+      <td className="px-4 py-2 border border-purple-500">{lead.phone || "-"}</td>
+      <td className="px-4 py-2 border border-purple-500">{lead.assigned_to || "-"}</td>
+      <td className="px-4 py-2 border border-purple-500">{lead.budget ?? "-"}</td>
+      <td className="px-4 py-2 border border-purple-500">
+        {lead.has_website ? "✅" : "❌"}
+      </td>
+      <td className="px-4 py-2 border border-purple-500">
+        <select
+          value={lead.status || "Not Contacted"}
+          onChange={(e) => {
+            e.stopPropagation(); // Prevent row click
+            handleStatusChange(lead.id, e.target.value);
+          }}
+          className="bg-purple-800 text-white rounded px-2 py-1 border border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-300"
         >
-          <td className="px-4 py-2 border border-purple-500 text-gray-100">{lead.lead_id ?? "-"}</td>
-          <td className="px-4 py-2 border border-purple-500 text-gray-100">{lead.business_name}</td>
-          <td className="px-4 py-2 border border-purple-500 text-gray-100">{lead.name ?? "-"}</td>
-          <td className="px-4 py-2 border border-purple-500 text-gray-100">{lead.phone ?? "-"}</td>
-          <td className="px-4 py-2 border border-purple-500 text-gray-100">{lead.assigned_to ?? "-"}</td>
-          <td className="px-4 py-2 border border-purple-500 text-gray-100">{lead.budget ?? "-"}</td>
-          <td className="px-4 py-2 border border-purple-500 text-gray-100">{lead.has_website ? "Yes" : "No"}</td>
-          <td className="px-4 py-2 border border-purple-500 text-gray-100">{lead.created_at ?? "-"}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
+          {statuses.filter((s) => s !== "All").map((status) => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-4 py-2 border border-purple-500">{lead.created_at || "-"}</td>
+    </tr>
+  ))}
+</tbody>
+
+        </table>
       )}
     </div>
   );

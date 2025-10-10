@@ -10,16 +10,17 @@ export interface User {
 }
 
 export interface Lead {
-  id?: number;
-  lead_id: string;
+  id: string;
   business_name: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  government?: string;
-  budget?: number;
-  has_website?: boolean;
-  message?: string;
-  created_at?: string;
-  assigned_to?: number; // user.id of salesperson
+  name: string;
+  email: string;
+  phone: string;
+  government: string;
+  budget: string; // changed from number
+  has_website: boolean;
+  message: string;
+  assigned_to: number;
+  created_at: string;
+  status: "First Call" | "Follow up" | "Waiting for proposal" | "Proposal approved" | "Done Deal";
 }
+

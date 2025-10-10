@@ -1,8 +1,8 @@
 import { Env } from "./types";
-import { handleLogin, handleLeads } from "./handlers";
+import { handleLogin, handleLeads, handleNotes } from "./handlers";
 
 /**
- * ✅ TypeScript-safe Worker entry
+ * ✅ Cloudflare Worker Entry (with full CORS support)
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -10,35 +10,44 @@ export default {
       const url = new URL(request.url);
       const { pathname } = url;
 
-      // Route: Login
+      // 🧱 Preflight requests (CORS OPTIONS)
+      if (request.method === "OPTIONS") {
+        return corsResponse();
+      }
+
+      /* --------------------------- LOGIN --------------------------- */
       if (pathname === "/api/login" && request.method === "POST") {
         const response = await handleLogin(request, env);
-        return ensureJsonResponse(response);
+        return withCORS(response);
       }
 
-      // Route: Leads (GET for fetching, POST for creating)
-      if (pathname === "/api/lead") {
-        if (request.method === "GET" || request.method === "POST") {
-          const response = await handleLeads(request, env);
-          return ensureJsonResponse(response);
-        }
-        return jsonResponse({ error: "Method not allowed" }, 405);
+      /* --------------------------- LEADS --------------------------- */
+      if (pathname === "/api/lead" && ["GET", "POST", "PUT"].includes(request.method)) {
+        const response = await handleLeads(request, env);
+        return withCORS(response);
       }
 
-      // Route: Admin (GET all leads)
+      /* --------------------------- NOTES --------------------------- */
+      if (pathname === "/api/notes" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
+        const response = await handleNotes(request, env);
+        return withCORS(response);
+      }
+
+      /* --------------------------- ADMIN --------------------------- */
       if (pathname === "/api/admin" && request.method === "GET") {
         const response = await handleLeads(request, env);
-        return ensureJsonResponse(response);
+        return withCORS(response);
       }
 
-      // Default: Not Found
-      return jsonResponse({ error: "Not found" }, 404);
-
+      /* --------------------------- NOT FOUND --------------------------- */
+      return withCORS(jsonResponse({ success: false, error: "Not found" }, 404));
     } catch (err) {
       console.error("Worker error:", err);
-      return jsonResponse(
-        { error: err instanceof Error ? err.message : "Internal server error" },
-        500
+      return withCORS(
+        jsonResponse(
+          { success: false, error: err instanceof Error ? err.message : "Internal server error" },
+          500
+        )
       );
     }
   },
@@ -48,20 +57,34 @@ export default {
 /*                              🔧 Helper Functions                           */
 /* -------------------------------------------------------------------------- */
 
-/** Wraps any response to ensure JSON */
-function ensureJsonResponse(res: Response): Response {
-  const contentType = res.headers.get("Content-Type");
-  if (!contentType?.includes("application/json")) {
-    console.warn("⚠️ Handler did not return JSON, wrapping it manually.");
-    return jsonResponse({ message: res.statusText || "OK" }, res.status);
-  }
-  return res;
-}
-
-/** Creates a JSON response with correct headers */
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * ✅ Adds CORS headers to any response
+ */
+function withCORS(res: Response): Response {
+  const headers = new Headers(res.headers);
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  return new Response(res.body, { status: res.status, headers });
+}
+
+/**
+ * 🧩 Response for CORS preflight (OPTIONS)
+ */
+function corsResponse(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
   });
 }
