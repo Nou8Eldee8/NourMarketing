@@ -1,4 +1,4 @@
-import { Env, Lead, Note } from "./types";
+import { Env, Lead} from "./types";
 
 /* ========================================================================
    LOGIN HANDLER
