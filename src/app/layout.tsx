@@ -19,6 +19,7 @@ export default function RootLayout({
       className={`${cocogoose.variable} ${dancingScript.variable}`}
     >
       <head>
+        <meta name="facebook-domain-verification" content="wqduv4g0pp6s2vqeq7vkpgj5ij129r" />
         {/* ---- Meta Pixel ---- */}
         <MetaPixel />
 
