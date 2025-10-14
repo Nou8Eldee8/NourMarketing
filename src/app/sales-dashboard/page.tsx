@@ -39,6 +39,8 @@ export default function SalesDashboard() {
   const statuses = [
     "All",
     "Not Contacted",
+    "Not Available",
+    "Call Back",
     "First Call",
     "Follow up",
     "Waiting for proposal",

@@ -48,13 +48,14 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
         let leads: Lead[] = [];
 
         if (role === "admin") {
-          const result = await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC").all<Lead>();
+          const result = await env.DB
+            .prepare("SELECT * FROM leads ORDER BY created_at DESC")
+            .all<Lead>();
           leads = result.results ?? [];
         } else if (role === "sales") {
           if (!userId) return jsonResponse({ success: false, error: "Missing user_id" }, 400);
-          const result = await env.DB.prepare(
-            "SELECT * FROM leads WHERE assigned_to = ? ORDER BY created_at DESC"
-          )
+          const result = await env.DB
+            .prepare("SELECT * FROM leads WHERE assigned_to = ? ORDER BY created_at DESC")
             .bind(Number(userId))
             .all<Lead>();
           leads = result.results ?? [];
@@ -72,24 +73,30 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
           return jsonResponse({ success: false, error: "Invalid lead data" }, 400);
         }
 
-        // Fetch all sales users
-        const salesUsers = await env.DB.prepare("SELECT id FROM users WHERE role = 'sales'").all<{ id: number }>();
+        // 1️⃣ Fetch all sales users in a fixed order
+        const salesUsers = await env.DB
+          .prepare("SELECT id FROM users WHERE role = 'sales' ORDER BY id ASC")
+          .all<{ id: number }>();
+
         const sales = salesUsers.results ?? [];
         if (sales.length === 0) {
           return jsonResponse({ success: false, error: "No salespeople found" }, 500);
         }
 
-        // Determine next salesperson to assign
-        const lastAssigned = await env.DB.prepare(
-          "SELECT assigned_to FROM leads ORDER BY id DESC LIMIT 1"
-        ).first<{ assigned_to: number }>();
+        // 2️⃣ Find the last assigned salesperson
+        const lastAssigned = await env.DB
+          .prepare("SELECT assigned_to FROM leads ORDER BY created_at DESC LIMIT 1")
+          .first<{ assigned_to: number }>();
 
-        const lastIndex = lastAssigned
-          ? sales.findIndex((s) => s.id === Math.floor(lastAssigned.assigned_to))
-          : -1;
+        const lastId = lastAssigned ? Number(lastAssigned.assigned_to) : null;
+        const lastIndex =
+          lastId !== null ? sales.findIndex((s) => Number(s.id) === lastId) : -1;
+
+        // 3️⃣ Determine next salesperson (round robin)
         const nextIndex = (lastIndex + 1) % sales.length;
         const assignedTo = sales[nextIndex].id;
 
+        // 4️⃣ Insert the new lead
         await env.DB.prepare(
           `INSERT INTO leads (
             id, business_name, name, email, phone, government, budget,
@@ -107,7 +114,7 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
             data.has_website ? 1 : 0,
             data.message ?? "",
             assignedTo,
-            data.status ?? "First Call"
+            data.status ?? "Not Contacted"
           )
           .run();
 
@@ -121,7 +128,8 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
           return jsonResponse({ success: false, error: "Missing id or status" }, 400);
         }
 
-        await env.DB.prepare("UPDATE leads SET status = ? WHERE id = ?")
+        await env.DB
+          .prepare("UPDATE leads SET status = ? WHERE id = ?")
           .bind(data.status, data.id)
           .run();
 
