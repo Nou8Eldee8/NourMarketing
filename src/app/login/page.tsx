@@ -4,18 +4,35 @@ import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+/* ========================================================================
+   🧱 TYPES
+   ======================================================================== */
 interface User {
   id: number;
   username: string;
-  role: "admin" | "sales" | "team_leader" | "social_media_specialist" | "video_editor" | "content_creator" | "reel_maker" | null;
+  role:
+    | "admin"
+    | "sales"
+    | "team_leader"
+    | "social_media_specialist"
+    | "video_editor"
+    | "content_creator"
+    | "reel_maker"
+    | null;
 }
 
 interface LoginResponse {
   success: boolean;
-  data?: { user: User };
+  data?: {
+    user: User;
+    token: string;
+  };
   error?: string;
 }
 
+/* ========================================================================
+   💜 LOGIN PAGE
+   ======================================================================== */
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -24,6 +41,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  /* --------------------------------------------------------------------
+     🕐 Greeting message
+  -------------------------------------------------------------------- */
   useEffect(() => {
     const hour = new Date().getHours();
     setMessage(
@@ -33,35 +53,58 @@ export default function LoginPage() {
     );
   }, []);
 
+  /* --------------------------------------------------------------------
+     🚪 Auto redirect if already logged in
+  -------------------------------------------------------------------- */
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
+    if (token && storedUser) {
+      try {
+        const user: User = JSON.parse(storedUser);
+        redirectByRole(user.role);
+      } catch {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
+    }
+  }, []);
+
+  /* --------------------------------------------------------------------
+     🎯 Role-based redirection
+  -------------------------------------------------------------------- */
   const redirectByRole = (role: string | null) => {
-  switch (role) {
-    case "admin":
-      router.push("/admin");
-      break;
-    case "sales":
-      router.push("/sales-dashboard");
-      break;
-    case "team_leader":
-      router.push("/ops/leader");
-      break;
-    case "social_media_specialist":
-      router.push("/ops/specialist");
-      break;
-    case "video_editor":
-      router.push("/ops/editor");
-      break;
-    case "content_creator":
-      router.push("/ops/creator");
-      break;
-    case "reel_maker":
-      router.push("/ops/reel");
-      break;
-    default:
-      router.push("/ops");
-  }
-};
+    switch (role) {
+      case "admin":
+        router.push("/admin");
+        break;
+      case "sales":
+        router.push("/sales-dashboard");
+        break;
+      case "team_leader":
+        router.push("/ops/leader");
+        break;
+      case "social_media_specialist":
+        router.push("/ops/specialist");
+        break;
+      case "video_editor":
+        router.push("/ops/editor");
+        break;
+      case "content_creator":
+        router.push("/ops/creator");
+        break;
+      case "reel_maker":
+        router.push("/ops/reel");
+        break;
+      default:
+        router.push("/ops");
+    }
+  };
 
-
+  /* --------------------------------------------------------------------
+     🔐 Handle Login
+  -------------------------------------------------------------------- */
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -75,13 +118,17 @@ export default function LoginPage() {
       });
 
       const data: LoginResponse = await res.json();
+      console.log("Login response:", data);
 
-      if (!res.ok || !data.success || !data.data?.user) {
+      if (!res.ok || !data.success || !data.data?.user || !data.data?.token) {
         throw new Error(data.error || "Invalid credentials");
       }
 
-      const user = data.data.user;
+      const { user, token } = data.data;
+
+      // 💾 Save user + token to localStorage
       localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", token);
 
       redirectByRole(user.role);
     } catch (err: any) {
@@ -91,15 +138,19 @@ export default function LoginPage() {
     }
   };
 
+  /* --------------------------------------------------------------------
+     💅 UI
+  -------------------------------------------------------------------- */
   return (
     <div
       className="flex flex-col justify-center items-center min-h-screen text-gray-100"
       style={{ fontFamily: "'Cairo', sans-serif" }}
     >
       <style>
-        {`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');`}
+        {`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Dancing+Script:wght@400;700&display=swap');`}
       </style>
 
+      {/* 🌙 Logo */}
       <div className="mb-12">
         <Link
           href="/"
@@ -110,6 +161,7 @@ export default function LoginPage() {
         </Link>
       </div>
 
+      {/* 🔐 Login Form */}
       <form
         onSubmit={handleLogin}
         className="bg-purple-800 p-8 rounded-2xl shadow-md w-full max-w-sm space-y-4 transition-all hover:shadow-[0_0_20px_5px_rgba(254,227,216,0.4)]"

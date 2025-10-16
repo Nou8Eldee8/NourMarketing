@@ -9,7 +9,10 @@ interface LoginBody {
 
 interface WorkerResponse {
   success: boolean;
-  data?: any;
+  data?: {
+    user: any;
+    token: string;
+  };
   error?: string;
 }
 
@@ -30,7 +33,6 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
-    // Type assertion here
     let result: WorkerResponse;
     try {
       result = (await response.json()) as WorkerResponse;
@@ -38,7 +40,25 @@ export async function POST(req: NextRequest) {
       result = { success: false, error: "Invalid response from worker" };
     }
 
-    return NextResponse.json(result, { status: response.status });
+    // If login fails, return early
+    if (!result.success || !result.data?.token) {
+      return NextResponse.json(result, { status: 401 });
+    }
+
+    // ✅ Create response and attach token cookie
+    const res = NextResponse.json(result, { status: 200 });
+
+    res.cookies.set({
+      name: "token",
+      value: result.data.token,
+      httpOnly: true, // prevent access from JS
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    return res;
   } catch (err: any) {
     console.error("Login handler error:", err);
     return NextResponse.json(

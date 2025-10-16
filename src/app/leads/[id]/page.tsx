@@ -44,27 +44,39 @@ export default function LeadDetailsPage() {
   const [newNote, setNewNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Load user from localStorage
+  /* --------------------------------------------------------------------
+     🔐 Load user + token from localStorage
+  -------------------------------------------------------------------- */
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
+    const storedToken = localStorage.getItem("token");
+
+    if (!storedUser || !storedToken) {
       router.push("/login");
       return;
     }
+
     try {
       const parsed = JSON.parse(storedUser) as User;
       setUser(parsed);
+      setToken(storedToken);
     } catch {
       console.error("Invalid user object in localStorage");
       setError("Failed to load user");
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      router.push("/login");
     }
   }, [router]);
 
-  // Fetch lead + notes after user is loaded
+  /* --------------------------------------------------------------------
+     📡 Fetch lead + notes (authorized)
+  -------------------------------------------------------------------- */
   useEffect(() => {
-    if (!leadId || !user) return;
+    if (!leadId || !user || !token) return;
 
     const fetchData = async () => {
       setLoading(true);
@@ -72,11 +84,12 @@ export default function LeadDetailsPage() {
       try {
         const [leadRes, notesRes] = await Promise.all([
           fetch(
-            `${API_BASE}/api/lead?lead_id=${leadId}&role=${user.role}&user_id=${Number(
-              user.id
-            )}`
+            `${API_BASE}/api/lead?lead_id=${leadId}&role=${user.role}&user_id=${user.id}`,
+            { headers: { Authorization: `Bearer ${token}` } }
           ),
-          fetch(`${API_BASE}/api/notes?lead_id=${leadId}`),
+          fetch(`${API_BASE}/api/notes?lead_id=${leadId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         const leadJson = (await leadRes.json()) as {
@@ -90,13 +103,11 @@ export default function LeadDetailsPage() {
           setError(leadJson.error || "Lead not found");
           setLead(null);
         } else {
-          if (Array.isArray(leadJson.data)) {
-            const found = leadJson.data.find((l) => l.id === leadId);
-            setLead(found ?? null);
-            if (!found) setError("Lead not found");
-          } else {
-            setLead(leadJson.data);
-          }
+          const leadData = Array.isArray(leadJson.data)
+            ? leadJson.data.find((l) => l.id === leadId)
+            : leadJson.data;
+          setLead(leadData ?? null);
+          if (!leadData) setError("Lead not found");
         }
 
         setNotes(notesJson?.data ?? []);
@@ -109,19 +120,24 @@ export default function LeadDetailsPage() {
     };
 
     fetchData();
-  }, [leadId, user]);
+  }, [leadId, user, token]);
 
-  // Add a new note
+  /* --------------------------------------------------------------------
+     ➕ Add a new note
+  -------------------------------------------------------------------- */
   const handleAddNote = async () => {
-    if (!newNote.trim() || !user) return;
+    if (!newNote.trim() || !user || !token) return;
 
     try {
       const res = await fetch(`${API_BASE}/api/notes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           lead_id: leadId,
-          user_id: Number(user.id),
+          user_id: user.id,
           note: newNote.trim(),
         }),
       });
@@ -134,7 +150,7 @@ export default function LeadDetailsPage() {
           {
             id: Date.now(),
             lead_id: leadId,
-            user_id: Number(user.id),
+            user_id: user.id,
             note: newNote.trim(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -148,10 +164,17 @@ export default function LeadDetailsPage() {
     }
   };
 
-  // Delete a note
+  /* --------------------------------------------------------------------
+     🗑 Delete a note
+  -------------------------------------------------------------------- */
   const handleDeleteNote = async (id: number) => {
+    if (!token) return;
+
     try {
-      const res = await fetch(`${API_BASE}/api/notes?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/api/notes?id=${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const json = (await res.json()) as { success?: boolean; error?: string };
       if (json.success) {
         setNotes((prev) => prev.filter((n) => n.id !== id));
@@ -161,6 +184,9 @@ export default function LeadDetailsPage() {
     }
   };
 
+  /* --------------------------------------------------------------------
+     🖼 UI
+  -------------------------------------------------------------------- */
   if (loading) return <p className="text-center mt-8 text-gray-400">Loading...</p>;
   if (error) return <p className="text-center mt-8 text-red-400">{error}</p>;
   if (!lead) return <p className="text-center mt-8 text-gray-400">Lead not found.</p>;
@@ -187,9 +213,10 @@ export default function LeadDetailsPage() {
 
       {/* Motivational Quote */}
       <p className="mb-6 text-lg font-medium text-[#f8f8f2]">
-        "Good sales happen after good preparation, get your notes ready boss"
+        "Good sales happen after good preparation — get your notes ready, boss."
       </p>
 
+      {/* Lead Info */}
       <h1 className="text-3xl font-bold mb-4">{lead.business_name}</h1>
       <p><strong>Name:</strong> {lead.name || "-"}</p>
       <p><strong>Phone:</strong> {lead.phone || "-"}</p>
@@ -200,8 +227,8 @@ export default function LeadDetailsPage() {
 
       <hr className="my-6 border-purple-600" />
 
+      {/* Notes */}
       <h2 className="text-2xl font-semibold mb-3">Notes</h2>
-
       <div className="space-y-3 mb-6">
         {notes.length === 0 ? (
           <p className="text-gray-400">No notes yet.</p>
@@ -228,6 +255,7 @@ export default function LeadDetailsPage() {
         )}
       </div>
 
+      {/* Add Note */}
       <div className="flex flex-col gap-2">
         <textarea
           value={newNote}
@@ -254,8 +282,7 @@ export default function LeadDetailsPage() {
 
       {/* Fonts */}
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Dancing+Script&display=swap');
+        {`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Dancing+Script&display=swap');`}
       </style>
     </div>
   );

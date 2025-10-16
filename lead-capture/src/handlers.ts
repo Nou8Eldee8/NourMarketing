@@ -1,8 +1,29 @@
-import { Env, Lead } from "./types";
+import { Env, Lead, Client, User } from "./types";
+import { signJWT } from "./jwt";
+import { requireAuth } from "./auth";
+import { SignJWT } from "jose";
 
-/* ============================================================================
-   LOGIN HANDLER
-   ============================================================================ */
+/* ========================================================================
+   ✅ Utility functions
+   ======================================================================== */
+function jsonResponse(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function handleError(err: unknown, message = "Server Error"): Response {
+  console.error(message, err);
+  return jsonResponse({ success: false, error: message }, 500);
+}
+interface UserPayload extends SignJWT {
+  id: number;
+  role: string;
+}
+/* ========================================================================
+   🧠 LOGIN HANDLER
+   ======================================================================== */
 export async function handleLogin(req: Request, env: Env): Promise<Response> {
   try {
     const body = (await req.json().catch(() => ({}))) as {
@@ -14,609 +35,438 @@ export async function handleLogin(req: Request, env: Env): Promise<Response> {
       return jsonResponse({ success: false, error: "Missing credentials" }, 400);
     }
 
-    // --- 1️⃣ Try primary DB (nour-leads)
-    let userRecord = await env.DB.prepare(
-      "SELECT id, username, role, password FROM users WHERE username = ?"
-    )
-      .bind(body.username)
-      .first<{ id: number; username: string; role: string; password: string }>();
+    type DBUser = { id: number; username: string; role: string; password: string };
 
-    // --- 2️⃣ If not found, try ops DB (nour-ops)
-    if (!userRecord && env.OPS_DB) {
-      userRecord = await env.OPS_DB.prepare(
-        "SELECT id, username, ops_role AS role, password FROM users WHERE username = ?"
+    let userRecord: DBUser | null =
+      (await env.DB.prepare(
+        "SELECT id, username, role, password FROM users WHERE username = ?"
       )
         .bind(body.username)
-        .first<{ id: number; username: string; role: string; password: string }>();
+        .first<DBUser>()) || null;
+
+    if (!userRecord && env.OPS_DB) {
+      userRecord =
+        (await env.OPS_DB.prepare(
+          "SELECT id, username, ops_role AS role, password FROM users WHERE username = ?"
+        )
+          .bind(body.username)
+          .first<DBUser>()) || null;
     }
 
-    if (!userRecord) {
+    if (!userRecord)
       return jsonResponse({ success: false, error: "User not found" }, 404);
-    }
 
-    // --- 3️⃣ Verify password
-    if (userRecord.password.trim() !== body.password.trim()) {
+    if (userRecord.password.trim() !== body.password.trim())
       return jsonResponse({ success: false, error: "Invalid credentials" }, 401);
-    }
 
-    // --- 4️⃣ Return clean user
     const { password: _pw, ...user } = userRecord;
-    return jsonResponse({ success: true, data: { user } });
+
+    const token = await signJWT(user);
+
+    return jsonResponse({
+      success: true,
+      data: { user, token },
+    });
   } catch (err) {
     return handleError(err, "Login error");
   }
 }
-
-/* ============================================================================
-   LEADS HANDLER
-   ============================================================================ */
+/* ========================================================================
+   📋 LEADS HANDLER
+   ======================================================================== */
 export async function handleLeads(req: Request, env: Env): Promise<Response> {
   try {
     const url = new URL(req.url);
 
+    // -----------------------------
+    // Auth for regular dashboard use
+    // -----------------------------
+    const auth = await requireAuth(req);
+    const user = auth.user as UserPayload | undefined; // TS-safe cast
+
     switch (req.method) {
-      /* --------------------------- GET: Fetch leads --------------------------- */
+      /* --------------------------------------------------------------------
+         GET → list all leads (admin or assigned to user)
+         Requires auth
+      -------------------------------------------------------------------- */
       case "GET": {
-        const role = url.searchParams.get("role");
-        const userId = url.searchParams.get("user_id");
+        if (!auth.authorized || !user) return auth.response!;
 
-        if (!role) return jsonResponse({ success: false, error: "Missing role" }, 400);
+        const result =
+          user.role === "admin"
+            ? await env.DB.prepare("SELECT * FROM leads ORDER BY created_at DESC").all<Lead>()
+            : await env.DB
+                .prepare("SELECT * FROM leads WHERE assigned_to = ? ORDER BY created_at DESC")
+                .bind(user.id)
+                .all<Lead>();
 
-        let leads: Lead[] = [];
-
-        if (role === "admin") {
-          const result = await env.DB.prepare(
-            "SELECT * FROM leads ORDER BY created_at DESC"
-          ).all<Lead>();
-          leads = result.results ?? [];
-        } else if (role === "sales") {
-          if (!userId)
-            return jsonResponse({ success: false, error: "Missing user_id" }, 400);
-          const result = await env.DB.prepare(
-            "SELECT * FROM leads WHERE assigned_to = ? ORDER BY created_at DESC"
-          )
-            .bind(Number(userId))
-            .all<Lead>();
-          leads = result.results ?? [];
-        } else {
-          return jsonResponse({ success: false, error: "Invalid role" }, 400);
-        }
-
-        return jsonResponse({ success: true, data: leads });
+        return jsonResponse({ success: true, data: result.results });
       }
 
-      /* --------------------------- POST: Add lead --------------------------- */
+      /* --------------------------------------------------------------------
+         POST → create lead
+         Can be used by contact form (no auth required)
+      -------------------------------------------------------------------- */
       case "POST": {
-        const data = (await req.json().catch(() => ({}))) as Partial<Lead>;
-        if (!data.business_name) {
-          return jsonResponse({ success: false, error: "Invalid lead data" }, 400);
+        const data = (await req.json()) as Partial<Lead>;
+
+        if (!data.id || !data.business_name || !data.name || !data.phone) {
+          return jsonResponse({ success: false, error: "Missing required fields" }, 400);
         }
 
-        // 1️⃣ Fetch all sales users
-        const salesUsers = await env.DB.prepare(
-          "SELECT id FROM users WHERE role = 'sales' ORDER BY id ASC"
-        ).all<{ id: number }>();
+        // Assign lead: if auth exists, assign to user; else leave null or default
+        const assignedTo = user?.id ?? null;
 
-        const sales = salesUsers.results ?? [];
-        if (sales.length === 0)
-          return jsonResponse({ success: false, error: "No salespeople found" }, 500);
-
-        // 2️⃣ Get last assigned salesperson
-        const lastAssigned = await env.DB.prepare(
-          "SELECT assigned_to FROM leads ORDER BY created_at DESC LIMIT 1"
-        ).first<{ assigned_to: number }>();
-
-        const lastId = lastAssigned ? Number(lastAssigned.assigned_to) : null;
-        const lastIndex =
-          lastId !== null ? sales.findIndex((s) => Number(s.id) === lastId) : -1;
-
-        // 3️⃣ Round robin assignment
-        const nextIndex = (lastIndex + 1) % sales.length;
-        const assignedTo = sales[nextIndex].id;
-
-        // 4️⃣ Insert new lead
         await env.DB.prepare(
-          `INSERT INTO leads (
-            id, business_name, name, email, phone, government, budget,
-            has_website, message, assigned_to, status, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+          `INSERT INTO leads 
+           (id, business_name, name, email, phone, government, budget, has_website, message, assigned_to, status) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
           .bind(
-            crypto.randomUUID(),
+            data.id,
             data.business_name,
+            data.name,
+            data.email ?? "",
+            data.phone,
+            data.government ?? "",
+            data.budget ?? "",
+            data.has_website ?? 0,
+            data.message ?? "",
+            assignedTo,
+            data.status ?? "First Call"
+          )
+          .run();
+
+        return jsonResponse({ success: true });
+      }
+
+      /* --------------------------------------------------------------------
+         PUT → update lead
+         Requires auth
+      -------------------------------------------------------------------- */
+      case "PUT": {
+        if (!auth.authorized || !user) return auth.response!;
+
+        const data = (await req.json()) as Partial<Lead>;
+        if (!data.id) return jsonResponse({ success: false, error: "Missing id" }, 400);
+
+        await env.DB.prepare(
+          `UPDATE leads SET 
+             business_name=?, name=?, email=?, phone=?, government=?, budget=?, 
+             has_website=?, message=?, assigned_to=?, status=? WHERE id=?`
+        )
+          .bind(
+            data.business_name ?? "",
             data.name ?? "",
             data.email ?? "",
             data.phone ?? "",
             data.government ?? "",
             data.budget ?? "",
-            data.has_website ? 1 : 0,
+            data.has_website ?? 0,
             data.message ?? "",
-            assignedTo,
-            data.status ?? "Not Contacted"
+            data.assigned_to ?? user.id,
+            data.status ?? "First Call",
+            data.id
           )
           .run();
 
-        return jsonResponse({ success: true, data: { assignedTo } });
+        return jsonResponse({ success: true });
       }
 
-      /* --------------------------- PUT: Update lead --------------------------- */
-      case "PUT": {
-        const data = (await req.json().catch(() => ({}))) as {
-          id?: string;
-          status?: Lead["status"];
-        };
+      /* --------------------------------------------------------------------
+         DELETE → remove lead
+         Requires auth
+      -------------------------------------------------------------------- */
+      case "DELETE": {
+        if (!auth.authorized || !user) return auth.response!;
 
-        if (!data.id || !data.status) {
-          return jsonResponse({ success: false, error: "Missing id or status" }, 400);
-        }
+        const id = url.searchParams.get("id");
+        if (!id) return jsonResponse({ success: false, error: "Missing id" }, 400);
 
-        await env.DB.prepare("UPDATE leads SET status = ? WHERE id = ?")
-          .bind(data.status, data.id)
-          .run();
-
-        return jsonResponse({ success: true, message: "Lead status updated" });
+        await env.DB.prepare("DELETE FROM leads WHERE id = ?").bind(id).run();
+        return jsonResponse({ success: true });
       }
 
       default:
-        return methodNotAllowed();
+        return jsonResponse({ success: false, error: "Method not allowed" }, 405);
     }
   } catch (err) {
     return handleError(err, "Lead handler error");
   }
 }
 
-/* ============================================================================
-   NOTES HANDLER
-   ============================================================================ */
+/* ========================================================================
+   🗒 NOTES HANDLER
+   ======================================================================== */
 export async function handleNotes(req: Request, env: Env): Promise<Response> {
   try {
+    const auth = await requireAuth(req);
+    if (!auth.authorized) return auth.response!;
+
     const url = new URL(req.url);
 
     switch (req.method) {
-      /* --------------------------- GET: Fetch notes --------------------------- */
       case "GET": {
-        const lead_id = url.searchParams.get("lead_id");
-        if (!lead_id)
-          return jsonResponse({ success: false, error: "Missing lead_id" }, 400);
+        const leadId = url.searchParams.get("lead_id");
+        if (!leadId) return jsonResponse({ success: false, error: "Missing lead_id" }, 400);
 
         const result = await env.DB.prepare(
           "SELECT * FROM notes WHERE lead_id = ? ORDER BY created_at DESC"
         )
-          .bind(lead_id)
+          .bind(leadId)
           .all();
 
-        return jsonResponse({ success: true, data: result.results ?? [] });
+        return jsonResponse({ success: true, data: result.results });
       }
 
-      /* --------------------------- POST: Add note --------------------------- */
       case "POST": {
-        const body = (await req.json().catch(() => ({}))) as {
-          lead_id?: string;
-          user_id?: number;
-          note?: string;
-        };
-        if (!body.lead_id || !body.user_id || !body.note) {
+        const data = (await req.json()) as { lead_id?: string; content?: string };
+        if (!data.lead_id || !data.content)
           return jsonResponse({ success: false, error: "Missing fields" }, 400);
-        }
 
         await env.DB.prepare(
-          "INSERT INTO notes (lead_id, user_id, note, created_at) VALUES (?, ?, ?, datetime('now'))"
+          "INSERT INTO notes (lead_id, content, created_at) VALUES (?, ?, datetime('now'))"
         )
-          .bind(body.lead_id, body.user_id, body.note)
+          .bind(data.lead_id, data.content)
           .run();
 
-        return jsonResponse({ success: true, message: "Note added successfully" });
-      }
-
-      /* --------------------------- PUT: Edit note --------------------------- */
-      case "PUT": {
-        const body = (await req.json().catch(() => ({}))) as {
-          id?: number;
-          note?: string;
-        };
-        if (!body.id || !body.note) {
-          return jsonResponse({ success: false, error: "Missing id or note" }, 400);
-        }
-
-        await env.DB.prepare(
-          "UPDATE notes SET note = ?, updated_at = datetime('now') WHERE id = ?"
-        )
-          .bind(body.note, body.id)
-          .run();
-
-        return jsonResponse({ success: true, message: "Note updated successfully" });
-      }
-
-      /* --------------------------- DELETE: Delete note --------------------------- */
-      case "DELETE": {
-        const noteId = url.searchParams.get("id");
-        if (!noteId)
-          return jsonResponse({ success: false, error: "Missing note id" }, 400);
-
-        await env.DB.prepare("DELETE FROM notes WHERE id = ?")
-          .bind(Number(noteId))
-          .run();
-
-        return jsonResponse({ success: true, message: "Note deleted successfully" });
+        return jsonResponse({ success: true });
       }
 
       default:
-        return methodNotAllowed();
+        return jsonResponse({ success: false, error: "Method not allowed" }, 405);
     }
   } catch (err) {
     return handleError(err, "Notes handler error");
   }
 }
 
-/* ============================================================================
-   USERS HANDLER (NEW)
-   ============================================================================ */
+/* ========================================================================
+   👥 USERS HANDLER
+   ======================================================================== */
 export async function handleUsers(req: Request, env: Env): Promise<Response> {
   try {
+    const auth = await requireAuth(req, ["admin"]);
+    if (!auth.authorized) return auth.response!;
+
     switch (req.method) {
       case "GET": {
-        const result = await env.DB.prepare("SELECT id, username, role FROM users").all();
-        return jsonResponse({ success: true, data: result.results ?? [] });
+        const result = await env.DB.prepare(
+          "SELECT id, username, role FROM users"
+        ).all<User>();
+        return jsonResponse({ success: true, data: result.results });
       }
 
       case "POST": {
-        const body = (await req.json().catch(() => ({}))) as {
-          username?: string;
-          password?: string;
-          role?: string;
-        };
-        if (!body.username || !body.password || !body.role) {
+        const data = (await req.json()) as { username?: string; password?: string; role?: string };
+        if (!data.username || !data.password || !data.role)
           return jsonResponse({ success: false, error: "Missing fields" }, 400);
-        }
 
         await env.DB.prepare(
           "INSERT INTO users (username, password, role) VALUES (?, ?, ?)"
         )
-          .bind(body.username, body.password, body.role)
+          .bind(data.username, data.password, data.role)
           .run();
-
-        return jsonResponse({ success: true, message: "User added" });
-      }
-
-      case "PUT": {
-        const body = (await req.json().catch(() => ({}))) as {
-          id?: number;
-          username?: string;
-          password?: string;
-          role?: string;
-        };
-        if (!body.id) return jsonResponse({ success: false, error: "Missing user id" }, 400);
-
-        await env.DB.prepare(
-          "UPDATE users SET username = COALESCE(?, username), password = COALESCE(?, password), role = COALESCE(?, role) WHERE id = ?"
-        )
-          .bind(body.username, body.password, body.role, body.id)
-          .run();
-
-        return jsonResponse({ success: true, message: "User updated" });
-      }
-
-      case "DELETE": {
-        const body = (await req.json().catch(() => ({}))) as { id?: number };
-        if (!body.id) return jsonResponse({ success: false, error: "Missing user id" }, 400);
-
-        await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(body.id).run();
-        return jsonResponse({ success: true, message: "User deleted" });
+        return jsonResponse({ success: true });
       }
 
       default:
-        return methodNotAllowed();
+        return jsonResponse({ success: false, error: "Method not allowed" }, 405);
     }
   } catch (err) {
     return handleError(err, "Users handler error");
   }
 }
+
 /* ========================================================================
-   CLIENTS HANDLER
+   🧾 CLIENTS HANDLER
    ======================================================================== */
 export async function handleClients(req: Request, env: Env): Promise<Response> {
-  const { OPS_DB } = env;
-  const url = new URL(req.url);
-
   try {
+    const auth = await requireAuth(req);
+    if (!auth.authorized) return auth.response!;
+
+    const url = new URL(req.url);
+
     switch (req.method) {
-      /* --------------------------------------------------------------------
-         📖 GET → list all clients (with published counts)
-      -------------------------------------------------------------------- */
       case "GET": {
-        const id = url.searchParams.get("id");
-
-        if (id) {
-          const client = await OPS_DB.prepare(
-            `SELECT * FROM clients WHERE id = ?`
-          ).bind(id).first();
-
-          if (!client) {
-            return jsonResponse({ success: false, error: "Client not found" }, 404);
-          }
-
-          const publishes = await OPS_DB.prepare(`
-            SELECT 
-              content_type,
-              platform,
-              publish_date,
-              link
-            FROM publishes
-            WHERE client_id = ?
-          `).bind(id).all();
-
-          return jsonResponse({ success: true, client, publishes: publishes.results });
-        }
-
-        // Get all clients with aggregated counts
-        const all = await OPS_DB.prepare(`
-          SELECT 
-            c.id,
-            c.name,
-            c.industry,
-            c.status,
-            c.videos_in_contract,
-            c.posts_in_contract,
-            COUNT(CASE WHEN p.content_type = 'Video' THEN 1 END) AS videos_published,
-            COUNT(CASE WHEN p.content_type = 'Post' THEN 1 END) AS posts_published
-          FROM clients c
-          LEFT JOIN publishes p ON p.client_id = c.id
-          GROUP BY c.id
-          ORDER BY c.id DESC
-        `).all();
-
-        return jsonResponse({ success: true, clients: all.results });
+        const result = await env.DB.prepare(
+          "SELECT * FROM clients ORDER BY start_date DESC"
+        ).all<Client>();
+        return jsonResponse({ success: true, data: result.results });
       }
 
-      /* --------------------------------------------------------------------
-         ➕ POST → add a new client
-      -------------------------------------------------------------------- */
       case "POST": {
-        const data: {
-          name: string;
-          industry?: string;
-          start_date?: string;
-          notes?: string;
-          status?: string;
-          videos_in_contract?: number;
-          posts_in_contract?: number;
-        } = await req.json();
+        const data = (await req.json()) as Client;
 
-        if (!data.name) {
-          return jsonResponse({ success: false, error: "Name required" }, 400);
-        }
-
-        await OPS_DB.prepare(`
-          INSERT INTO clients (name, industry, start_date, notes, status, videos_in_contract, posts_in_contract)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          data.name,
-          data.industry ?? "",
-          data.start_date ?? "",
-          data.notes ?? "",
-          data.status ?? "Active",
-          data.videos_in_contract ?? 0,
-          data.posts_in_contract ?? 0
-        ).run();
-
-        return jsonResponse({ success: true, message: "Client added" });
-      }
-
-/* --------------------------------------------------------------------
-   ✏️ PUT → update client
--------------------------------------------------------------------- */
-case "PUT": {
-  const data: {
-    id: number;
-    name: string;
-    industry?: string;
-    start_date?: string;
-    notes?: string;
-    status?: string;
-    videos_in_contract?: number;
-    posts_in_contract?: number;
-    leave_reason?: string;
-  } = await req.json();
-
-  if (!data.id) {
-    return jsonResponse({ success: false, error: "Missing client id" }, 400);
-  }
-
-  await OPS_DB.prepare(`
-    UPDATE clients
-    SET name = ?, industry = ?, start_date = ?, notes = ?, status = ?, 
-        videos_in_contract = ?, posts_in_contract = ?, leave_reason = ?
-    WHERE id = ?
-  `).bind(
-    data.name,
-    data.industry ?? "",
-    data.start_date ?? "",
-    data.notes ?? "",
-    data.status ?? "",
-    data.videos_in_contract ?? 0,
-    data.posts_in_contract ?? 0,
-    data.leave_reason ?? "",
-    data.id
-  ).run();
-
-  return jsonResponse({ success: true, message: "Client updated" });
-}
-
-      /* --------------------------------------------------------------------
-         🗑 DELETE → remove client
-      -------------------------------------------------------------------- */
-      case "DELETE": {
-        const id = url.searchParams.get("id");
-        if (!id) return jsonResponse({ success: false, error: "Missing id" }, 400);
-
-        await OPS_DB.prepare(`DELETE FROM clients WHERE id = ?`).bind(id).run();
-        return jsonResponse({ success: true, message: "Client deleted" });
-      }
-
-      default:
-        return jsonResponse({ success: false, error: "Method not allowed" }, 405);
-    }
-  } catch (err) {
-    console.error("Error in handleClients:", err);
-    return jsonResponse({ success: false, error: String(err) }, 500);
-  }
-}
-
-export async function handlePosts(req: Request, env: Env): Promise<Response> {
-  const { OPS_DB } = env;
-  const url = new URL(req.url);
-
-  try {
-    switch (req.method) {
-      /* --------------------------------------------------------------------
-         📖 GET → all publishes or by client_id
-      -------------------------------------------------------------------- */
-      case "GET": {
-        const clientId = url.searchParams.get("client_id");
-
-        let query = `
-          SELECT 
-            p.id,
-            p.client_id,
-            p.edit_id,
-            p.content_type,
-            p.platform,
-            p.publish_date,
-            p.link,
-            p.posted_by,
-            c.name AS client_name,
-            u.name AS posted_by_name
-          FROM publishes p
-          LEFT JOIN clients c ON p.client_id = c.id
-          LEFT JOIN users u ON p.posted_by = u.id
-        `;
-
-        const binds: (string | number)[] = [];
-        if (clientId) {
-          query += " WHERE p.client_id = ?";
-          binds.push(clientId);
-        }
-
-        query += " ORDER BY p.publish_date DESC";
-
-        const all = await OPS_DB.prepare(query).bind(...binds).all();
-        return jsonResponse({ success: true, publishes: all.results });
-      }
-
-      /* --------------------------------------------------------------------
-         ➕ POST → add new publish
-      -------------------------------------------------------------------- */
-      case "POST": {
-        const data: {
-          client_id: number;
-          edit_id: number;
-          content_type: "Video" | "Post";
-          platform?: "Instagram" | "Facebook" | "TikTok" | "YouTube" | "Other";
-          publish_date?: string;
-          link?: string;
-          posted_by?: number;
-        } = await req.json();
-
-        if (!data.client_id || !data.edit_id || !data.content_type) {
-          return jsonResponse({ success: false, error: "Missing required fields" }, 400);
-        }
-
-        await OPS_DB.prepare(
-          `INSERT INTO publishes (client_id, edit_id, content_type, platform, publish_date, link, posted_by)
+        await env.DB.prepare(
+          `INSERT INTO clients (name, industry, start_date, notes, status, videos_in_contract, posts_in_contract)
            VALUES (?, ?, ?, ?, ?, ?, ?)`
         )
           .bind(
-            data.client_id,
-            data.edit_id,
-            data.content_type,
-            data.platform ?? "Instagram",
-            data.publish_date ?? new Date().toISOString().split("T")[0],
-            data.link ?? "",
-            data.posted_by ?? null
+            data.name ?? "",
+            data.industry ?? "",
+            data.start_date ?? "",
+            data.notes ?? "",
+            data.status ?? "",
+            data.videos_in_contract ?? 0,
+            data.posts_in_contract ?? 0
           )
           .run();
-
-        return jsonResponse({ success: true, message: "Publish added successfully" });
+        return jsonResponse({ success: true });
       }
 
-      /* --------------------------------------------------------------------
-         ✏️ PUT → update publish
-      -------------------------------------------------------------------- */
       case "PUT": {
-        const data: {
-          id: number;
-          content_type?: "Video" | "Post";
-          platform?: string;
-          publish_date?: string;
-          link?: string;
-          posted_by?: number;
-        } = await req.json();
+        const data = (await req.json()) as Partial<Client>;
+        if (!data.id) return jsonResponse({ success: false, error: "Missing id" }, 400);
 
-        if (!data.id) {
-          return jsonResponse({ success: false, error: "Missing id" }, 400);
-        }
-
-        await OPS_DB.prepare(
-          `UPDATE publishes
-           SET content_type = ?, platform = ?, publish_date = ?, link = ?, posted_by = ?
-           WHERE id = ?`
+        await env.DB.prepare(
+          `UPDATE clients 
+             SET name=?, industry=?, start_date=?, notes=?, status=?, videos_in_contract=?, posts_in_contract=? 
+             WHERE id=?`
         )
           .bind(
-            data.content_type ?? "Post",
-            data.platform ?? "Instagram",
-            data.publish_date ?? "",
-            data.link ?? "",
-            data.posted_by ?? null,
+            data.name ?? "",
+            data.industry ?? "",
+            data.start_date ?? "",
+            data.notes ?? "",
+            data.status ?? "",
+            data.videos_in_contract ?? 0,
+            data.posts_in_contract ?? 0,
             data.id
           )
           .run();
-
-        return jsonResponse({ success: true, message: "Publish updated" });
+        return jsonResponse({ success: true });
       }
 
-      /* --------------------------------------------------------------------
-         🗑 DELETE → remove publish
-      -------------------------------------------------------------------- */
       case "DELETE": {
         const id = url.searchParams.get("id");
         if (!id) return jsonResponse({ success: false, error: "Missing id" }, 400);
 
-        await OPS_DB.prepare(`DELETE FROM publishes WHERE id = ?`).bind(id).run();
-        return jsonResponse({ success: true, message: "Publish deleted" });
+        await env.DB.prepare("DELETE FROM clients WHERE id = ?").bind(id).run();
+        return jsonResponse({ success: true });
       }
 
       default:
         return jsonResponse({ success: false, error: "Method not allowed" }, 405);
     }
   } catch (err) {
-    console.error("Error in handlePosts:", err);
-    return jsonResponse({ success: false, error: String(err) }, 500);
+    return handleError(err, "Clients handler error");
+  }
+}
+
+/* ========================================================================
+   📢 POSTS HANDLER
+   ======================================================================== */
+export async function handlePosts(req: Request, env: Env): Promise<Response> {
+  try {
+    const auth = await requireAuth(req);
+    if (!auth.authorized) return auth.response!;
+
+    const url = new URL(req.url);
+
+    switch (req.method) {
+      case "GET": {
+        const result = await env.DB.prepare(
+          "SELECT * FROM posts ORDER BY created_at DESC"
+        ).all();
+        return jsonResponse({ success: true, data: result.results });
+      }
+
+      case "POST": {
+        const data = (await req.json()) as {
+          client_id?: number;
+          caption?: string;
+          platform?: string;
+          status?: string;
+        };
+
+        if (!data.client_id || !data.caption || !data.platform || !data.status)
+          return jsonResponse({ success: false, error: "Missing fields" }, 400);
+
+        await env.DB.prepare(
+          "INSERT INTO posts (client_id, caption, platform, status, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
+        )
+          .bind(data.client_id, data.caption, data.platform, data.status)
+          .run();
+        return jsonResponse({ success: true });
+      }
+
+      case "PUT": {
+        const data = (await req.json()) as {
+          id?: number;
+          caption?: string;
+          platform?: string;
+          status?: string;
+        };
+
+        if (!data.id) return jsonResponse({ success: false, error: "Missing id" }, 400);
+
+        await env.DB.prepare(
+          "UPDATE posts SET caption=?, platform=?, status=? WHERE id=?"
+        )
+          .bind(data.caption ?? "", data.platform ?? "", data.status ?? "", data.id)
+          .run();
+
+        return jsonResponse({ success: true });
+      }
+
+      case "DELETE": {
+        const id = url.searchParams.get("id");
+        if (!id) return jsonResponse({ success: false, error: "Missing id" }, 400);
+
+        await env.DB.prepare("DELETE FROM posts WHERE id = ?").bind(id).run();
+        return jsonResponse({ success: true });
+      }
+
+      default:
+        return jsonResponse({ success: false, error: "Method not allowed" }, 405);
+    }
+  } catch (err) {
+    return handleError(err, "Posts handler error");
   }
 }
 
 
-/* ============================================================================
-   HELPERS
-   ============================================================================ */
-function jsonResponse(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data ?? {}), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
-  });
-}
+/* ========================================================================
+   🧑‍💼 ADMIN HANDLER
+   ======================================================================== */
+export async function handleAdmin(req: Request, env: Env): Promise<Response> {
+  try {
+    // ✅ Reuse authentication
+    const auth = await requireAuth(req);
+    if (!auth.authorized) return auth.response!;
+    const user = auth.user!;
 
-function handleError(err: unknown, context: string): Response {
-  const message =
-    err instanceof Error ? err.message : typeof err === "string" ? err : "Unknown error";
-  console.error(`${context}:`, message);
-  return jsonResponse({ success: false, error: message }, 500);
-}
+    // ✅ Allow only admin role
+    if (user.role !== "admin") {
+      return jsonResponse({ success: false, error: "Unauthorized" }, 403);
+    }
 
-function methodNotAllowed(): Response {
-  return jsonResponse({ success: false, error: "Method not allowed" }, 405);
+    // ✅ Return leads + clients overview
+    const leads = await env.DB.prepare(
+      "SELECT * FROM leads ORDER BY created_at DESC"
+    ).all();
+
+    const clients = await env.DB.prepare(
+      "SELECT * FROM clients ORDER BY start_date DESC"
+    ).all();
+
+    const users = await env.DB.prepare(
+      "SELECT id, username, role FROM users"
+    ).all();
+
+    return jsonResponse({
+      success: true,
+      leads: leads.results ?? [],
+      clients: clients.results ?? [],
+      users: users.results ?? [],
+    });
+  } catch (err) {
+    console.error("Admin handler error:", err);
+    return jsonResponse(
+      { success: false, error: "Admin handler failed" },
+      500
+    );
+  }
 }

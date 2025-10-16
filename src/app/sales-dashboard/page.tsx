@@ -48,6 +48,17 @@ export default function SalesDashboard() {
     "Done Deal",
   ];
 
+  // 🧩 Helper: fetch with token header
+  const fetchWithAuth = async (url: string, options?: RequestInit) => {
+    const token = localStorage.getItem("token");
+    const headers = {
+      ...(options?.headers || {}),
+      Authorization: token ? `Bearer ${token}` : "",
+    };
+    const res = await fetch(url, { ...options, headers });
+    return res;
+  };
+
   // 🧠 Fetch user + leads
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -75,7 +86,7 @@ export default function SalesDashboard() {
 
     const fetchLeads = async () => {
       try {
-        const res = await fetch(
+        const res = await fetchWithAuth(
           `/api/lead?role=${encodeURIComponent(parsedUser.role)}&user_id=${encodeURIComponent(
             parsedUser.id
           )}`
@@ -132,13 +143,14 @@ export default function SalesDashboard() {
   // 🚪 Logout
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     router.push("/login");
   };
 
   // 🔄 Update lead status
   const handleStatusChange = async (leadId: string, newStatus: string) => {
     try {
-      const res = await fetch("/api/lead", {
+      const res = await fetchWithAuth("/api/lead", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: leadId, status: newStatus }),
@@ -276,7 +288,7 @@ export default function SalesDashboard() {
                 </td>
                 <td
                   className="px-4 py-2 border border-purple-500"
-                  onClick={(e) => e.stopPropagation()} // prevent opening when changing status
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <select
                     value={

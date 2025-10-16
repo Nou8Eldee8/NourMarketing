@@ -5,9 +5,9 @@ import { useState } from "react";
 import { MessageCircle, ArrowLeft } from "lucide-react";
 import Footer from "../components/Footer";
 import bgImage from "../components/bg.jpg";
-import { Tajawal } from "next/font/google"; // ✅ Local font import
+import { Tajawal } from "next/font/google";
+import { v4 as uuidv4 } from "uuid"; // ✅ Added for unique lead ID
 
-// ✅ Load Arabic font (only for this page)
 const tajawal = Tajawal({
   subsets: ["arabic"],
   weight: ["400", "500", "700"],
@@ -25,6 +25,7 @@ export default function ContactPage() {
     const data = new FormData(form);
 
     const payload = {
+      id: uuidv4(), // ✅ generate unique ID
       name: data.get("name"),
       email: data.get("email"),
       phone: data.get("phone"),
@@ -93,9 +94,7 @@ export default function ContactPage() {
           </Link>
 
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              تواصل معنا
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">تواصل معنا</h1>
             <p className="text-xl text-[#fee3d8]/80 leading-relaxed">
               لا نقدم باقات جاهزة — بل نبني استراتيجيات تسويق مخصصة تناسب أهداف
               نشاطك التجاري.

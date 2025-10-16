@@ -6,8 +6,8 @@ import Link from "next/link";
 import Footer from "../components/Footer";
 import bgImage from "../components/bg.jpg";
 import { Tajawal } from "next/font/google";
+import { v4 as uuidv4 } from "uuid"; // ✅ Added for unique lead ID
 
-// ✅ Google Font
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
   weight: ["400", "500", "700"],
@@ -32,6 +32,7 @@ export default function ContactPageAB() {
 
     const data = new FormData(e.currentTarget);
     const payload = {
+      id: uuidv4(), // ✅ generate unique ID for the backend
       name: data.get("name"),
       email: data.get("email"),
       phone: data.get("phone"),
@@ -65,7 +66,8 @@ export default function ContactPageAB() {
 
   const labels = {
     title: "دعنا نبدأ بخطوات بسيطة 👋",
-    subtitle: "أجب عن بعض الأسئلة القصيرة وسنقوم بإعداد استراتيجيتك التسويقية المخصصة.",
+    subtitle:
+      "أجب عن بعض الأسئلة القصيرة وسنقوم بإعداد استراتيجيتك التسويقية المخصصة.",
     step1: "الخطوة 1 من 3: تفاصيل النشاط التجاري",
     step2: "الخطوة 2 من 3: بيانات التواصل",
     step3: "الخطوة 3 من 3: معلومات إضافية",
@@ -76,7 +78,7 @@ export default function ContactPageAB() {
     name: "الاسم الكامل",
     phone: "رقم الهاتف",
     website: "هل لديك موقع إلكتروني؟",
-    message: "هل ترغب في إخبارنا المزيد عن مشروعك؟",
+    message: "هل ترغب بإخبارنا المزيد عن مشروعك؟",
     next: "التالي",
     back: "السابق",
     submit: "إرسال المعلومات",

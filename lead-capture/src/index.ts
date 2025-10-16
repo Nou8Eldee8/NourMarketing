@@ -1,9 +1,17 @@
 import { Env } from "./types";
-import { handleLogin, handleLeads, handleNotes, handleUsers, handleClients, handlePosts } from "./handlers";
+import {
+  handleLogin,
+  handleLeads,
+  handleNotes,
+  handleUsers,
+  handleClients,
+  handlePosts,
+  handleAdmin,
+} from "./handlers";
 
 /**
  * ✅ Cloudflare Worker Entry
- * Handles: /api/login, /api/lead, /api/notes, /api/users
+ * Handles: /api/login, /api/lead, /api/notes, /api/users, /api/admin
  * Includes: full CORS + robust error handling
  */
 export default {
@@ -42,20 +50,27 @@ export default {
       if (pathname === "/api/users" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
         return withCORS(await handleUsers(request, env));
       }
+
       // ----------------------------------------------------------------------
-// 🧩 CLIENTS
-// ----------------------------------------------------------------------
-if (pathname === "/api/clients" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
-  return withCORS(await handleClients(request, env));
-}
-// ----------------------------------------------------------------------
-// 🧩 POSTS / PUBLISHES
-// ----------------------------------------------------------------------
-if (pathname === "/api/posts" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
-  return withCORS(await handlePosts(request, env));
-}
+      // 🧩 CLIENTS
+      // ----------------------------------------------------------------------
+      if (pathname === "/api/clients" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
+        return withCORS(await handleClients(request, env));
+      }
 
+      // ----------------------------------------------------------------------
+      // 🧩 POSTS
+      // ----------------------------------------------------------------------
+      if (pathname === "/api/posts" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
+        return withCORS(await handlePosts(request, env));
+      }
 
+      // ----------------------------------------------------------------------
+      // 🧩 ADMIN DASHBOARD
+      // ----------------------------------------------------------------------
+      if (pathname === "/api/admin" && request.method === "GET") {
+        return withCORS(await handleAdmin(request, env));
+      }
 
       // ----------------------------------------------------------------------
       // ❌ NOT FOUND
@@ -76,14 +91,10 @@ if (pathname === "/api/posts" && ["GET", "POST", "PUT", "DELETE"].includes(reque
   },
 };
 
-
 /* -------------------------------------------------------------------------- */
 /*                              🔧 Helper Functions                           */
 /* -------------------------------------------------------------------------- */
 
-/**
- * ✅ Create a JSON response safely
- */
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data ?? {}), {
     status,
@@ -91,9 +102,6 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
-/**
- * ✅ Wraps a Response with CORS headers
- */
 function withCORS(res: Response): Response {
   const headers = new Headers(res.headers);
   headers.set("Access-Control-Allow-Origin", "*");
@@ -102,9 +110,6 @@ function withCORS(res: Response): Response {
   return new Response(res.body, { status: res.status, headers });
 }
 
-/**
- * ✅ CORS preflight response
- */
 function corsResponse(): Response {
   return new Response(null, {
     status: 204,
@@ -114,5 +119,4 @@ function corsResponse(): Response {
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     },
   });
-  
 }
