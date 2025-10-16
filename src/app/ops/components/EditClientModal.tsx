@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch } from "@/lib/api";
 import { Client } from "@/types/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface ApiResponse {
   success: boolean;
@@ -26,7 +25,6 @@ export default function EditClientModal({
   onClose,
   onUpdated,
 }: EditClientModalProps) {
-  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState<Client & { leave_reason?: string }>({
@@ -45,7 +43,7 @@ export default function EditClientModal({
     if (client) {
       setFormData({
         ...client,
-        leave_reason: (client as any).leave_reason ?? "",
+        leave_reason: client.leave_reason ?? "",
       });
     }
   }, [client]);
@@ -72,26 +70,13 @@ export default function EditClientModal({
       });
 
       if (res.success) {
-        toast({
-          title: "Client info updated",
-          description: "Changes were saved successfully.",
-        });
         onUpdated({ ...formData });
         setTimeout(onClose, 300);
       } else {
-        toast({
-          variant: "destructive",
-          title: "Failed to update client",
-          description: res.message ?? "Something went wrong.",
-        });
+        console.error("Failed to update client:", res.message);
       }
     } catch (err) {
       console.error("Save error:", err);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Network or server issue occurred.",
-      });
     } finally {
       setSaving(false);
     }
@@ -136,6 +121,7 @@ export default function EditClientModal({
           </header>
 
           <div className="space-y-3">
+            {/* Brand name */}
             <div>
               <label className="block text-sm mb-1 text-gray-300">
                 Brand Name
@@ -148,10 +134,9 @@ export default function EditClientModal({
               />
             </div>
 
+            {/* Industry */}
             <div>
-              <label className="block text-sm mb-1 text-gray-300">
-                Industry
-              </label>
+              <label className="block text-sm mb-1 text-gray-300">Industry</label>
               <input
                 name="industry"
                 value={formData.industry}
@@ -160,6 +145,7 @@ export default function EditClientModal({
               />
             </div>
 
+            {/* Notes */}
             <div>
               <label className="block text-sm mb-1 text-gray-300">Notes</label>
               <textarea
@@ -171,6 +157,7 @@ export default function EditClientModal({
               />
             </div>
 
+            {/* Contract numbers */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm mb-1 text-gray-300">
@@ -199,6 +186,7 @@ export default function EditClientModal({
               </div>
             </div>
 
+            {/* Status */}
             <div>
               <label className="block text-sm mb-1 text-gray-300">Status</label>
               <select
@@ -215,7 +203,7 @@ export default function EditClientModal({
               </select>
             </div>
 
-            {/* 👇 Conditionally show Leave Reason */}
+            {/* Leave reason (only if Lost) */}
             {formData.status === "Lost" && (
               <div>
                 <label className="block text-sm mb-1 text-gray-300">
@@ -225,9 +213,9 @@ export default function EditClientModal({
                   name="leave_reason"
                   value={formData.leave_reason ?? ""}
                   onChange={handleChange}
+                  placeholder="Why was this client lost?"
                   className="w-full rounded-md p-2 bg-white/10 border border-white/20"
-                  rows={2}
-                  placeholder="Why did the client leave?"
+                  rows={3}
                 />
               </div>
             )}
