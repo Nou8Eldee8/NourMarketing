@@ -6,7 +6,7 @@ import Link from "next/link";
 import Footer from "../components/Footer";
 import bgImage from "../components/bg.jpg";
 import { Tajawal } from "next/font/google";
-import { v4 as uuidv4 } from "uuid"; // ✅ Added for unique lead ID
+import { v4 as uuidv4 } from "uuid"; // For unique lead ID
 
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
@@ -16,6 +16,18 @@ const tajawal = Tajawal({
 export default function ContactPageAB() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+
+  // ✅ State for all form fields
+  const [formData, setFormData] = useState({
+    business_name: "",
+    government: "",
+    budget: "",
+    name: "",
+    email: "",
+    phone: "",
+    has_website: false,
+    message: "",
+  });
 
   const waitForFbq = () =>
     new Promise<void>((resolve) => {
@@ -30,20 +42,13 @@ export default function ContactPageAB() {
     e.preventDefault();
     setSubmitting(true);
 
-    const data = new FormData(e.currentTarget);
-    const payload = {
-      id: uuidv4(), // ✅ generate unique ID for the backend
-      name: data.get("name"),
-      email: data.get("email"),
-      phone: data.get("phone"),
-      message: data.get("message"),
-      business_name: data.get("business_name"),
-      government: data.get("government"),
-      budget: Number(data.get("budget")),
-      has_website: data.get("has_website") === "on",
-    };
-
     try {
+      const payload = {
+        id: uuidv4(),
+        ...formData,
+        budget: Number(formData.budget),
+      };
+
       const response = await fetch("/api/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,11 +76,11 @@ export default function ContactPageAB() {
     step1: "الخطوة 1 من 3: تفاصيل النشاط التجاري",
     step2: "الخطوة 2 من 3: بيانات التواصل",
     step3: "الخطوة 3 من 3: معلومات إضافية",
-    business_name: "اسم النشاط التجاري",
     business_placeholder: "مثلاً: نور ماركتنج أو محل زعفران",
     government: "المحافظة",
     budget: "الميزانية الشهرية المتوقعة (بالجنيه)",
-    name: "الاسم الكامل",
+    name: "الالاسم الكامل",
+    email: "البريد الإلكتروني",
     phone: "رقم الهاتف",
     website: "هل لديك موقع إلكتروني؟",
     message: "هل ترغب بإخبارنا المزيد عن مشروعك؟",
@@ -145,12 +150,20 @@ export default function ContactPageAB() {
                   type="text"
                   name="business_name"
                   placeholder={labels.business_placeholder}
+                  value={formData.business_name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, business_name: e.target.value }))
+                  }
                   required
                   className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:ring-2 focus:ring-[#fee3d8]/40"
                 />
 
                 <select
                   name="government"
+                  value={formData.government}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, government: e.target.value }))
+                  }
                   required
                   className="w-full p-4 bg-[#2D0A3D]/80 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8]"
                 >
@@ -164,6 +177,10 @@ export default function ContactPageAB() {
                   type="number"
                   name="budget"
                   placeholder={labels.budget}
+                  value={formData.budget}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, budget: e.target.value }))
+                  }
                   required
                   className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:ring-2 focus:ring-[#fee3d8]/40"
                 />
@@ -187,6 +204,22 @@ export default function ContactPageAB() {
                   type="text"
                   name="name"
                   placeholder={labels.name}
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  required
+                  className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:ring-2 focus:ring-[#fee3d8]/40"
+                />
+
+                <input
+                  type="email"
+                  name="email"
+                  placeholder={labels.email}
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
                   required
                   className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:ring-2 focus:ring-[#fee3d8]/40"
                 />
@@ -195,6 +228,10 @@ export default function ContactPageAB() {
                   type="tel"
                   name="phone"
                   placeholder={labels.phone}
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                  }
                   required
                   className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:ring-2 focus:ring-[#fee3d8]/40"
                 />
@@ -225,7 +262,15 @@ export default function ContactPageAB() {
                 <h2 className="text-lg font-semibold mb-4">{labels.step3}</h2>
 
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" name="has_website" className="accent-[#fee3d8]" />
+                  <input
+                    type="checkbox"
+                    name="has_website"
+                    checked={formData.has_website}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, has_website: e.target.checked }))
+                    }
+                    className="accent-[#fee3d8]"
+                  />
                   <span>{labels.website}</span>
                 </label>
 
@@ -233,6 +278,10 @@ export default function ContactPageAB() {
                   name="message"
                   rows={4}
                   placeholder={labels.message}
+                  value={formData.message}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, message: e.target.value }))
+                  }
                   className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:ring-2 focus:ring-[#fee3d8]/40"
                 ></textarea>
 

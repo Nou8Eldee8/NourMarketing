@@ -133,7 +133,7 @@ export async function handleLeads(req: Request, env: Env): Promise<Response> {
             data.has_website ?? 0,
             data.message ?? "",
             assignedTo,
-            data.status ?? "First Call"
+            data.status ?? "Not Contacted"
           )
           .run();
 
