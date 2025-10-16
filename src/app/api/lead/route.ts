@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 
 const WORKER_URL = "https://lead-capture.hazelsbrand211.workers.dev/api/lead";
 
@@ -16,59 +17,76 @@ interface LeadPayload {
 }
 
 async function forwardToWorker(
-  req: NextRequest,
   method: string,
-  body?: any
-): Promise<NextResponse> {
+  body?: any,
+  token?: string,
+  role?: string,
+  user_id?: string
+) {
+  const url = `${WORKER_URL}?role=${role ?? ""}&user_id=${user_id ?? ""}`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`Worker ${method} error:`, text);
+    return NextResponse.json({ success: false, error: text }, { status: response.status });
+  }
+
+  const data = await response.json();
+  return NextResponse.json({ success: true, data }, { status: 200 });
+}
+
+export async function POST(req: NextRequest) {
   try {
+    const body: LeadPayload = await req.json();
+
+    // ✅ Public form: generate an ID if missing
+    if (!body.id) body.id = uuidv4();
+
+    // 🔑 Check token (optional)
+    const token = req.cookies.get("token")?.value;
     const { searchParams } = new URL(req.url);
     const role = searchParams.get("role") ?? "";
     const user_id = searchParams.get("user_id") ?? "";
 
-    // 🔑 Get token from cookies
-    const token = req.cookies.get("token")?.value;
-    if (!token) {
-      console.error("❌ No token found in cookies");
-      return NextResponse.json({ success: false, error: "No token provided" }, { status: 401 });
-    }
-
-    const url = `${WORKER_URL}?role=${role}&user_id=${user_id}`;
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`, // ✅ Send token to Worker
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(`Worker ${method} error:`, text);
-      return NextResponse.json({ success: false, error: text }, { status: response.status });
-    }
-
-    const data = await response.json();
-    return NextResponse.json({ success: true, data }, { status: 200 });
+    return forwardToWorker("POST", body, token, role, user_id);
   } catch (err: any) {
-    console.error(`API /lead ${method} error:`, err);
-    return NextResponse.json({ success: false, error: err.message ?? "Unexpected error" }, { status: 500 });
+    console.error("POST /api/lead error:", err);
+    return NextResponse.json(
+      { success: false, error: err.message ?? "Unexpected error" },
+      { status: 500 }
+    );
   }
 }
 
-// ----------------- GET -----------------
 export async function GET(req: NextRequest) {
-  return forwardToWorker(req, "GET");
+  const token = req.cookies.get("token")?.value;
+  const { searchParams } = new URL(req.url);
+  const role = searchParams.get("role") ?? "";
+  const user_id = searchParams.get("user_id") ?? "";
+  return forwardToWorker("GET", undefined, token, role, user_id);
 }
 
-// ----------------- POST -----------------
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-  return forwardToWorker(req, "POST", body);
-}
-
-// ----------------- PUT -----------------
 export async function PUT(req: NextRequest) {
-  const body = await req.json();
-  return forwardToWorker(req, "PUT", body);
+  try {
+    const body: LeadPayload = await req.json();
+    const token = req.cookies.get("token")?.value;
+    const { searchParams } = new URL(req.url);
+    const role = searchParams.get("role") ?? "";
+    const user_id = searchParams.get("user_id") ?? "";
+    return forwardToWorker("PUT", body, token, role, user_id);
+  } catch (err: any) {
+    console.error("PUT /api/lead error:", err);
+    return NextResponse.json(
+      { success: false, error: err.message ?? "Unexpected error" },
+      { status: 500 }
+    );
+  }
 }
