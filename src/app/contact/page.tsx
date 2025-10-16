@@ -1,30 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MessageCircle, ArrowLeft } from "lucide-react";
 import Footer from "../components/Footer";
 import bgImage from "../components/bg.jpg";
+import { Tajawal } from "next/font/google"; // ✅ Local font import
 
-type Language = "en" | "ar";
+// ✅ Load Arabic font (only for this page)
+const tajawal = Tajawal({
+  subsets: ["arabic"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+});
 
 export default function ContactPage() {
   const [submitting, setSubmitting] = useState(false);
-  const [lang, setLang] = useState<Language>("en");
-
-  useEffect(() => {
-    const browserLang = navigator.language || navigator.languages[0];
-    if (browserLang.startsWith("ar")) setLang("ar");
-  }, []);
-
-  const waitForFbq = () =>
-    new Promise<void>((resolve) => {
-      const check = () => {
-        if (typeof (window as any).fbq === "function") resolve();
-        else setTimeout(check, 200);
-      };
-      check();
-    });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -53,89 +44,45 @@ export default function ContactPage() {
 
       if (!response.ok) throw new Error("Form submission failed");
 
-      await waitForFbq();
-      (window as any).fbq("track", "Lead");
+      if (typeof (window as any).fbq === "function") {
+        (window as any).fbq("track", "Lead");
+      }
 
-      console.log("✅ Meta Pixel Lead event fired!");
       window.location.href = "/thank-you";
     } catch (error) {
       console.error("Form submission error:", error);
-      alert(
-        lang === "ar"
-          ? "حدث خطأ ما. حاول مرة أخرى."
-          : "Something went wrong. Please try again."
-      );
+      alert("حدث خطأ ما. حاول مرة أخرى.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const t = {
-    en: {
-      title: "Let’s Talk",
-      subtitle:
-        "We don’t do packages. We build marketing strategies tailored to your business.",
-      name: "Full Name | الاسم الكامل",
-      email: "Email Address | البريد الإلكتروني",
-      phone: "Phone Number | رقم الهاتف",
-      business: "Business Name | اسم النشاط التجاري",
-      government: "Governorate | المحافظة",
-      budget: "Estimated Monthly Budget (EGP) | الميزانية الشهرية المتوقعة",
-      website: "Do you have a website? | هل لديك موقع إلكتروني؟",
-      message: "Tell us about your project | أخبرنا عن مشروعك",
-      submit: "Get Your Custom Strategy | احصل على استراتيجيتك المخصصة",
-      submitting: "Submitting... | جارٍ الإرسال...",
-      whatsapp: "Chat on WhatsApp | تحدث معنا على واتساب",
-      back: "← Back | رجوع",
-    },
-    ar: {
-      title: "تواصل معنا",
-      subtitle:
-        "نحن لا نقدم باقات جاهزة، بل نبني استراتيجيات تسويق مخصصة لعملك.",
-      name: "Full Name | الاسم الكامل",
-      email: "Email Address | البريد الإلكتروني",
-      phone: "Phone Number | رقم الهاتف",
-      business: "Business Name | اسم النشاط التجاري",
-      government: "Governorate | المحافظة",
-      budget: "Estimated Monthly Budget (EGP) | الميزانية الشهرية المتوقعة",
-      website: "Do you have a website? | هل لديك موقع إلكتروني؟",
-      message: "Tell us about your project | أخبرنا عن مشروعك",
-      submit: "Get Your Custom Strategy | احصل على استراتيجيتك المخصصة",
-      submitting: "Submitting... | جارٍ الإرسال...",
-      whatsapp: "Chat on WhatsApp | تحدث معنا على واتساب",
-      back: "← Back | رجوع",
-    },
-  };
-
-  const tr = t[lang];
-
   return (
     <>
       <section
-        className={`relative min-h-screen bg-[#0f0215] text-[#fee3d8] px-6 pb-32 pt-24 overflow-hidden ${
-          lang === "ar" ? "text-right" : "text-left"
-        }`}
+        dir="rtl"
+        className={`${tajawal.className} relative min-h-screen bg-[#0f0215] text-[#fee3d8] px-6 pb-32 pt-24 overflow-hidden text-right`}
       >
-        {/* ✅ Fixed Back Button (always visible top-left) */}
+        {/* 🔙 زر الرجوع */}
         <button
           onClick={() =>
             window.history.length > 1
               ? window.history.back()
               : (window.location.href = "/")
           }
-          className="fixed top-6 left-6 z-50 flex items-center gap-2 text-[#fee3d8]/80 hover:text-[#fee3d8] transition text-sm md:text-base"
+          className="fixed top-6 right-6 z-50 flex items-center gap-2 text-[#fee3d8]/80 hover:text-[#fee3d8] transition text-sm md:text-base"
         >
-          <ArrowLeft size={20} />
-          {tr.back}
+          <ArrowLeft size={20} className="rotate-180" />
+          <span>رجوع</span>
         </button>
 
-        {/* Background Blur */}
+        {/* خلفية */}
         <div
           className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 z-0"
           style={{ backgroundImage: `url(${bgImage.src})` }}
         ></div>
 
-        {/* Content */}
+        {/* المحتوى */}
         <div className="relative z-10 max-w-3xl mx-auto space-y-12 text-center">
           <Link
             href="/"
@@ -146,74 +93,78 @@ export default function ContactPage() {
           </Link>
 
           <div>
-            <h1 className="text-4xl md:text-5xl font-cocogoose font-bold mb-4">
-              {tr.title}
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              تواصل معنا
             </h1>
-            <p className="text-xl text-[#fee3d8]/80">{tr.subtitle}</p>
+            <p className="text-xl text-[#fee3d8]/80 leading-relaxed">
+              لا نقدم باقات جاهزة — بل نبني استراتيجيات تسويق مخصصة تناسب أهداف
+              نشاطك التجاري.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6 text-left">
+          {/* الفورم */}
+          <form onSubmit={handleSubmit} className="space-y-6">
             <input
               type="text"
               name="business_name"
-              placeholder={tr.business}
+              placeholder="اسم النشاط التجاري"
               required
-              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
 
             <input
               type="text"
               name="name"
-              placeholder={tr.name}
+              placeholder="الاسم الكامل"
               required
-              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
 
             <input
               type="email"
               name="email"
-              placeholder={tr.email}
+              placeholder="البريد الإلكتروني"
               required
-              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
 
             <input
               type="tel"
               name="phone"
-              placeholder={tr.phone}
+              placeholder="رقم الهاتف"
               required
-              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
-<select
-  name="government"
-  required
-  className="w-full p-4 bg-[#2D0A3D]/80 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
->
-  <option value="">{tr.government}</option>
-  <option value="Cairo">Cairo | القاهرة</option>
-  <option value="Alexandria">Alexandria | الإسكندرية</option>
-  <option value="Giza">Giza | الجيزة</option>
-</select>
 
+            <select
+              name="government"
+              required
+              className="w-full p-4 bg-[#2D0A3D]/80 border border-white/20 rounded-xl text-[#fee3d8] focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+            >
+              <option value="">اختر المحافظة</option>
+              <option value="Cairo">القاهرة</option>
+              <option value="Alexandria">الإسكندرية</option>
+              <option value="Giza">الجيزة</option>
+            </select>
 
             <input
               type="number"
               name="budget"
-              placeholder={tr.budget}
+              placeholder="الميزانية الشهرية المتوقعة (بالجنيه المصري)"
               required
-              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             />
 
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-2 justify-end text-right">
+              <span>هل لديك موقع إلكتروني؟</span>
               <input type="checkbox" name="has_website" className="accent-[#fee3d8]" />
-              <span>{tr.website}</span>
             </label>
 
             <textarea
               name="message"
-              placeholder={tr.message}
+              placeholder="حدثنا عن مشروعك أو التحدي الذي تواجهه"
               rows={4}
-              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
+              className="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-[#fee3d8] placeholder-[#fee3d8]/60 focus:outline-none focus:ring-2 focus:ring-[#fee3d8]/40"
             ></textarea>
 
             <button
@@ -225,10 +176,11 @@ export default function ContactPage() {
                   : "bg-[#290f4c] hover:bg-[#3a1b63]"
               } text-[#fee3d8]`}
             >
-              {submitting ? tr.submitting : tr.submit}
+              {submitting ? "جارٍ الإرسال..." : "احصل على استراتيجيتك المخصصة"}
             </button>
           </form>
 
+          {/* زر واتساب */}
           <div className="pt-6">
             <a
               href="https://wa.me/201283052272"
@@ -237,7 +189,7 @@ export default function ContactPage() {
               className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-full font-semibold transition"
             >
               <MessageCircle size={18} />
-              {tr.whatsapp}
+              تحدث معنا على واتساب
             </a>
           </div>
         </div>

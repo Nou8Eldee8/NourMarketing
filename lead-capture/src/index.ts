@@ -1,8 +1,10 @@
 import { Env } from "./types";
-import { handleLogin, handleLeads, handleNotes } from "./handlers";
+import { handleLogin, handleLeads, handleNotes, handleUsers, handleClients, handlePosts } from "./handlers";
 
 /**
- * ✅ Cloudflare Worker Entry (with full CORS support)
+ * ✅ Cloudflare Worker Entry
+ * Handles: /api/login, /api/lead, /api/notes, /api/users
+ * Includes: full CORS + robust error handling
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -10,62 +12,87 @@ export default {
       const url = new URL(request.url);
       const { pathname } = url;
 
-      // 🧱 Preflight requests (CORS OPTIONS)
-      if (request.method === "OPTIONS") {
-        return corsResponse();
-      }
+      // 🧱 Handle CORS preflight
+      if (request.method === "OPTIONS") return corsResponse();
 
-      /* --------------------------- LOGIN --------------------------- */
+      // ----------------------------------------------------------------------
+      // 🧩 LOGIN
+      // ----------------------------------------------------------------------
       if (pathname === "/api/login" && request.method === "POST") {
-        const response = await handleLogin(request, env);
-        return withCORS(response);
+        return withCORS(await handleLogin(request, env));
       }
 
-      /* --------------------------- LEADS --------------------------- */
+      // ----------------------------------------------------------------------
+      // 🧩 LEADS
+      // ----------------------------------------------------------------------
       if (pathname === "/api/lead" && ["GET", "POST", "PUT"].includes(request.method)) {
-        const response = await handleLeads(request, env);
-        return withCORS(response);
+        return withCORS(await handleLeads(request, env));
       }
 
-      /* --------------------------- NOTES --------------------------- */
+      // ----------------------------------------------------------------------
+      // 🧩 NOTES
+      // ----------------------------------------------------------------------
       if (pathname === "/api/notes" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
-        const response = await handleNotes(request, env);
-        return withCORS(response);
+        return withCORS(await handleNotes(request, env));
       }
 
-      /* --------------------------- ADMIN --------------------------- */
-      if (pathname === "/api/admin" && request.method === "GET") {
-        const response = await handleLeads(request, env);
-        return withCORS(response);
+      // ----------------------------------------------------------------------
+      // 🧩 USERS
+      // ----------------------------------------------------------------------
+      if (pathname === "/api/users" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
+        return withCORS(await handleUsers(request, env));
       }
+      // ----------------------------------------------------------------------
+// 🧩 CLIENTS
+// ----------------------------------------------------------------------
+if (pathname === "/api/clients" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
+  return withCORS(await handleClients(request, env));
+}
+// ----------------------------------------------------------------------
+// 🧩 POSTS / PUBLISHES
+// ----------------------------------------------------------------------
+if (pathname === "/api/posts" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
+  return withCORS(await handlePosts(request, env));
+}
 
-      /* --------------------------- NOT FOUND --------------------------- */
+
+
+      // ----------------------------------------------------------------------
+      // ❌ NOT FOUND
+      // ----------------------------------------------------------------------
       return withCORS(jsonResponse({ success: false, error: "Not found" }, 404));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Worker error:", err);
-      return withCORS(
-        jsonResponse(
-          { success: false, error: err instanceof Error ? err.message : "Internal server error" },
-          500
-        )
-      );
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+          ? err
+          : "Internal server error";
+
+      return withCORS(jsonResponse({ success: false, error: message }, 500));
     }
   },
 };
+
 
 /* -------------------------------------------------------------------------- */
 /*                              🔧 Helper Functions                           */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * ✅ Create a JSON response safely
+ */
 function jsonResponse(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
+  return new Response(JSON.stringify(data ?? {}), {
     status,
     headers: { "Content-Type": "application/json" },
   });
 }
 
 /**
- * ✅ Adds CORS headers to any response
+ * ✅ Wraps a Response with CORS headers
  */
 function withCORS(res: Response): Response {
   const headers = new Headers(res.headers);
@@ -76,7 +103,7 @@ function withCORS(res: Response): Response {
 }
 
 /**
- * 🧩 Response for CORS preflight (OPTIONS)
+ * ✅ CORS preflight response
  */
 function corsResponse(): Response {
   return new Response(null, {
@@ -87,4 +114,5 @@ function corsResponse(): Response {
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     },
   });
+  
 }

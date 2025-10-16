@@ -7,7 +7,7 @@ import Link from "next/link";
 interface User {
   id: number;
   username: string;
-  role: "admin" | "sales";
+  role: "admin" | "sales" | "team_leader" | "social_media_specialist" | "video_editor" | "content_creator" | "reel_maker" | null;
 }
 
 interface LoginResponse {
@@ -33,6 +33,35 @@ export default function LoginPage() {
     );
   }, []);
 
+  const redirectByRole = (role: string | null) => {
+  switch (role) {
+    case "admin":
+      router.push("/admin");
+      break;
+    case "sales":
+      router.push("/sales-dashboard");
+      break;
+    case "team_leader":
+      router.push("/ops/leader");
+      break;
+    case "social_media_specialist":
+      router.push("/ops/specialist");
+      break;
+    case "video_editor":
+      router.push("/ops/editor");
+      break;
+    case "content_creator":
+      router.push("/ops/creator");
+      break;
+    case "reel_maker":
+      router.push("/ops/reel");
+      break;
+    default:
+      router.push("/ops");
+  }
+};
+
+
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -54,8 +83,7 @@ export default function LoginPage() {
       const user = data.data.user;
       localStorage.setItem("user", JSON.stringify(user));
 
-      if (user.role === "admin") router.push("/admin");
-      else router.push("/sales-dashboard");
+      redirectByRole(user.role);
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -64,7 +92,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col justify-center items-center min-h-screen text-gray-100" style={{ fontFamily: "'Cairo', sans-serif" }}>
+    <div
+      className="flex flex-col justify-center items-center min-h-screen text-gray-100"
+      style={{ fontFamily: "'Cairo', sans-serif" }}
+    >
       <style>
         {`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');`}
       </style>
@@ -79,8 +110,13 @@ export default function LoginPage() {
         </Link>
       </div>
 
-      <form onSubmit={handleLogin} className="bg-purple-800 p-8 rounded-2xl shadow-md w-full max-w-sm space-y-4 transition-all hover:shadow-[0_0_20px_5px_rgba(254,227,216,0.4)]">
-        <h1 className="text-2xl font-bold text-center text-[#fee3d8]">Admin / Sales Login</h1>
+      <form
+        onSubmit={handleLogin}
+        className="bg-purple-800 p-8 rounded-2xl shadow-md w-full max-w-sm space-y-4 transition-all hover:shadow-[0_0_20px_5px_rgba(254,227,216,0.4)]"
+      >
+        <h1 className="text-2xl font-bold text-center text-[#fee3d8]">
+          Login to Nour System
+        </h1>
 
         <input
           type="text"
@@ -111,7 +147,10 @@ export default function LoginPage() {
         {error && <p className="text-center text-red-400 text-sm">{error}</p>}
       </form>
 
-      <p className="mt-6 text-center text-2xl text-[#fee3d8] transition-transform duration-500 hover:scale-105" style={{ fontFamily: "'Dancing Script', cursive" }}>
+      <p
+        className="mt-6 text-center text-2xl text-[#fee3d8] transition-transform duration-500 hover:scale-105"
+        style={{ fontFamily: "'Dancing Script', cursive" }}
+      >
         {message}
       </p>
     </div>

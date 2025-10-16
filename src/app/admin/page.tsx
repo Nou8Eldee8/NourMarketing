@@ -3,10 +3,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api"; // 👈 import helper
 
+// ==============================
+// 🔹 Types
+// ==============================
 interface Lead {
   id: string;
-  lead_id?: string;
   business_name: string;
   name?: string;
   email?: string;
@@ -15,29 +18,36 @@ interface Lead {
   budget?: number | string;
   has_website?: boolean;
   message?: string;
-  assigned_to?: string;
+  assigned_to?: number | string;
   created_at?: string;
   status?: string;
 }
 
 interface User {
-  id: string;
+  id: number;
   username: string;
   role: "admin" | "sales";
 }
 
-interface ApiResponse {
+interface LeadsResponse {
   success: boolean;
-  data?: {
-    success?: boolean;
-    data?: Lead[];
-  };
+  data?: Lead[];
   error?: string;
 }
 
+interface UsersResponse {
+  success: boolean;
+  data: User[];
+  error?: string;
+}
+
+// ==============================
+// 🔹 Component
+// ==============================
 export default function AdminPage() {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [user, setUser] = useState<User | null>(null);
@@ -47,6 +57,8 @@ export default function AdminPage() {
   const statuses = [
     "All",
     "Not Contacted",
+    "Not Available",
+    "Call Back",
     "First Call",
     "Follow up",
     "Waiting for proposal",
@@ -54,7 +66,9 @@ export default function AdminPage() {
     "Done Deal",
   ];
 
-  // 🧠 Load user + fetch leads
+  // ==============================
+  // 🧠 Load user + fetch leads/users
+  // ==============================
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
@@ -63,24 +77,25 @@ export default function AdminPage() {
     }
 
     try {
-      const parsedUser = JSON.parse(storedUser) as User;
+      const parsedUser: User = JSON.parse(storedUser);
       setUser(parsedUser);
-      fetchLeads(parsedUser);
+      void Promise.all([fetchLeads(parsedUser), fetchUsers()]);
     } catch {
       localStorage.removeItem("user");
       router.push("/login");
     }
   }, [router]);
 
-  async function fetchLeads(currentUser: User) {
+  // ==============================
+  // 📦 Fetch Leads
+  // ==============================
+  async function fetchLeads(currentUser: User): Promise<void> {
     try {
-      const res = await fetch(`/api/lead?role=${currentUser.role}&user_id=${currentUser.id}`);
-      const json = (await res.json()) as ApiResponse;
+      const data = await apiFetch<LeadsResponse>(
+        `/api/lead?role=${currentUser.role}&user_id=${currentUser.id}`
+      );
 
-      if (!res.ok || !json.success) throw new Error(json.error || "Failed to fetch leads");
-
-      const leadsArray: Lead[] = Array.isArray(json.data?.data) ? json.data.data : [];
-      setLeads(leadsArray);
+      setLeads(data.data ?? []);
     } catch (err: any) {
       setError(err.message ?? "Unknown error");
     } finally {
@@ -88,21 +103,30 @@ export default function AdminPage() {
     }
   }
 
-  // 🔄 Update status
-  const handleStatusChange = async (leadId: string, newStatus: string) => {
+  // ==============================
+  // 👥 Fetch Users
+  // ==============================
+  async function fetchUsers(): Promise<void> {
     try {
-      const res = await fetch("/api/lead", {
+      const data = await apiFetch<UsersResponse>(`/api/users`);
+      setUsers(data.data || []);
+    } catch (err: any) {
+      console.error("Error fetching users:", err);
+    }
+  }
+
+  // ==============================
+  // 🔄 Update Lead Status
+  // ==============================
+  const handleStatusChange = async (leadId: string, newStatus: string): Promise<void> => {
+    try {
+      await apiFetch(`/api/lead`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: leadId, status: newStatus }),
       });
 
-      if (!res.ok) throw new Error(await res.text());
-
       setLeads((prev) =>
-        prev.map((lead) =>
-          lead.id === leadId ? { ...lead, status: newStatus } : lead
-        )
+        prev.map((lead) => (lead.id === leadId ? { ...lead, status: newStatus } : lead))
       );
     } catch (err) {
       console.error("Failed to update status:", err);
@@ -110,11 +134,21 @@ export default function AdminPage() {
     }
   };
 
-  // 🔍 Search + Filter + Sort
+  // ==============================
+  // 🧩 Get Username from ID
+  // ==============================
+  const getAssignedUsername = (assignedTo?: number | string): string => {
+    if (!assignedTo) return "-";
+    const found = users.find((u) => u.id === Number(assignedTo));
+    return found ? found.username : `#${assignedTo}`;
+  };
+
+  // ==============================
+  // 🔍 Filter + Search
+  // ==============================
   const filteredLeads = useMemo(() => {
     let result = [...leads];
 
-    // Search by name, phone, or business
     if (searchTerm.trim()) {
       const lower = searchTerm.toLowerCase();
       result = result.filter(
@@ -125,7 +159,6 @@ export default function AdminPage() {
       );
     }
 
-    // Filter by status
     if (filterStatus !== "All") {
       result = result.filter((lead) => {
         const status = lead.status?.toLowerCase().trim();
@@ -141,6 +174,9 @@ export default function AdminPage() {
     return result;
   }, [leads, searchTerm, filterStatus]);
 
+  // ==============================
+  // 🧱 Render
+  // ==============================
   if (loading) return <p className="text-center mt-8">Loading leads...</p>;
   if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
   if (!user) return null;
@@ -219,53 +255,56 @@ export default function AdminPage() {
                 "Status",
                 "Created At",
               ].map((label) => (
-                <th
-                  key={label}
-                  className="px-4 py-2 border border-purple-500 text-gray-100"
-                >
+                <th key={label} className="px-4 py-2 border border-purple-500 text-gray-100">
                   {label}
                 </th>
               ))}
             </tr>
           </thead>
- <tbody>
-  {filteredLeads.map((lead, idx) => (
-    <tr
-      key={lead.id}
-      className={`cursor-pointer ${
-        idx % 2 === 0
-          ? "bg-purple-700 hover:bg-purple-600"
-          : "bg-purple-600 hover:bg-purple-500"
-      }`}
-      onClick={() => router.push(`/leads/${lead.id}`)}
-    >
-      <td className="px-4 py-2 border border-purple-500">{lead.business_name}</td>
-      <td className="px-4 py-2 border border-purple-500">{lead.name || "-"}</td>
-      <td className="px-4 py-2 border border-purple-500">{lead.phone || "-"}</td>
-      <td className="px-4 py-2 border border-purple-500">{lead.assigned_to || "-"}</td>
-      <td className="px-4 py-2 border border-purple-500">{lead.budget ?? "-"}</td>
-      <td className="px-4 py-2 border border-purple-500">
-        {lead.has_website ? "✅" : "❌"}
-      </td>
-      <td className="px-4 py-2 border border-purple-500">
-        <select
-          value={lead.status || "Not Contacted"}
-          onChange={(e) => {
-            e.stopPropagation(); // Prevent row click
-            handleStatusChange(lead.id, e.target.value);
-          }}
-          className="bg-purple-800 text-white rounded px-2 py-1 border border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-300"
-        >
-          {statuses.filter((s) => s !== "All").map((status) => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
-      </td>
-      <td className="px-4 py-2 border border-purple-500">{lead.created_at || "-"}</td>
-    </tr>
-  ))}
-</tbody>
 
+          <tbody>
+            {filteredLeads.map((lead, idx) => (
+              <tr
+                key={lead.id}
+                className={`cursor-pointer ${
+                  idx % 2 === 0
+                    ? "bg-purple-700 hover:bg-purple-600"
+                    : "bg-purple-600 hover:bg-purple-500"
+                }`}
+                onClick={() => router.push(`/leads/${lead.id}`)}
+              >
+                <td className="px-4 py-2 border border-purple-500">{lead.business_name}</td>
+                <td className="px-4 py-2 border border-purple-500">{lead.name || "-"}</td>
+                <td className="px-4 py-2 border border-purple-500">{lead.phone || "-"}</td>
+                <td className="px-4 py-2 border border-purple-500">
+                  {getAssignedUsername(lead.assigned_to)}
+                </td>
+                <td className="px-4 py-2 border border-purple-500">{lead.budget ?? "-"}</td>
+                <td className="px-4 py-2 border border-purple-500">
+                  {lead.has_website ? "✅" : "❌"}
+                </td>
+                <td className="px-4 py-2 border border-purple-500">
+                  <select
+                    value={lead.status || "Not Contacted"}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      handleStatusChange(lead.id, e.target.value);
+                    }}
+                    className="bg-purple-800 text-white rounded px-2 py-1 border border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  >
+                    {statuses
+                      .filter((s) => s !== "All")
+                      .map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                  </select>
+                </td>
+                <td className="px-4 py-2 border border-purple-500">{lead.created_at || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       )}
     </div>

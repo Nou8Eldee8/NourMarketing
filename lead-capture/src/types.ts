@@ -1,8 +1,9 @@
 // src/types.ts
-
 export interface Env {
-  DB: D1Database;
+  DB: D1Database;       // nour-leads
+  OPS_DB: D1Database;   // nour-ops
 }
+
 
 export interface Lead {
   id: string;
