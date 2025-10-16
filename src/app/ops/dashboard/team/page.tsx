@@ -54,7 +54,6 @@ export default function TeamLeaderDashboard() {
               title={s.role.replaceAll("_", " ").toUpperCase()}
               assigned={s.totalAssigned}
               completed={s.totalCompleted}
-              textColor="white"
             />
           ))}
         </div>
@@ -62,7 +61,7 @@ export default function TeamLeaderDashboard() {
         {/* Team table */}
         <div className="rounded-xl p-6">
           <h2 className="text-2xl font-bold mb-4 text-white">Team Members</h2>
-          <TeamTable members={team} textColor="white" />
+          <TeamTable members={team}/>
         </div>
       </main>
     </div>
