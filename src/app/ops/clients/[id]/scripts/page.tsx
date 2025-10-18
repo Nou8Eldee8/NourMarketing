@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import Header from "../../../components/header";
 import { ArrowLeft } from "lucide-react";
@@ -27,13 +27,10 @@ interface Client {
   videos_in_contract: number;
 }
 
-interface Props {
-  params: { id: string };
-}
-
-export default function ClientScriptsPage({ params }: Props) {
+export default function ClientScriptsPage() {
   const router = useRouter();
-  const clientId = params.id;
+  const pathname = usePathname();
+  const clientId = pathname.split("/")[3]; // /ops/clients/[id]/scripts
 
   const [client, setClient] = useState<Client | null>(null);
   const [scripts, setScripts] = useState<Script[]>([]);
@@ -41,7 +38,6 @@ export default function ClientScriptsPage({ params }: Props) {
 
   const creatorId = 5; // Replace with actual logged-in creator ID
 
-  // Fetch client info
   useEffect(() => {
     async function fetchClient() {
       try {
@@ -50,13 +46,12 @@ export default function ClientScriptsPage({ params }: Props) {
         );
         if (res.success && res.data.length > 0) setClient(res.data[0]);
       } catch (err) {
-        console.error("Error fetching client:", err);
+        console.error(err);
       }
     }
     fetchClient();
   }, [clientId]);
 
-  // Fetch scripts
   useEffect(() => {
     async function fetchScripts() {
       setLoading(true);
@@ -66,7 +61,7 @@ export default function ClientScriptsPage({ params }: Props) {
         );
         if (res.success) setScripts(res.scripts);
       } catch (err) {
-        console.error("Error fetching scripts:", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -74,7 +69,6 @@ export default function ClientScriptsPage({ params }: Props) {
     fetchScripts();
   }, [clientId]);
 
-  // Update script status
   const handleStatusChange = async (
     scriptId: number,
     newStatus: "Draft" | "Completed" | "Approved"
@@ -100,7 +94,6 @@ export default function ClientScriptsPage({ params }: Props) {
     }
   };
 
-  // Calculate weekly tasks
   function isWeeklyTask(scriptIndex: number) {
     if (!client) return false;
     const totalPosts = client.posts_in_contract;
@@ -120,7 +113,6 @@ export default function ClientScriptsPage({ params }: Props) {
       <Header />
 
       <main className="p-6 max-w-5xl mx-auto mt-24">
-        {/* ===== Back Button ===== */}
         <button
           onClick={() => router.back()}
           className="mb-6 flex items-center gap-2 text-gray-200 hover:text-white hover:bg-white/10 px-3 py-1 rounded"
@@ -128,7 +120,6 @@ export default function ClientScriptsPage({ params }: Props) {
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
 
-        {/* ===== Client Info ===== */}
         {client && (
           <div className="bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-2xl shadow-lg p-6 mb-10">
             <h1 className="text-3xl font-semibold mb-4">{client.name}</h1>
@@ -166,7 +157,6 @@ export default function ClientScriptsPage({ params }: Props) {
           </div>
         )}
 
-        {/* ===== Add Script Button ===== */}
         <button
           onClick={() => router.push(`/ops/clients/${clientId}/scripts/new`)}
           className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded mb-4"
@@ -174,7 +164,6 @@ export default function ClientScriptsPage({ params }: Props) {
           Add Script
         </button>
 
-        {/* ===== Scripts Table ===== */}
         {loading ? (
           <div className="text-gray-400">Loading scripts...</div>
         ) : scripts.length === 0 ? (
@@ -199,11 +188,8 @@ export default function ClientScriptsPage({ params }: Props) {
                     }`}
                   >
                     <td className="px-4 py-3 border-b border-white/20">{s.title}</td>
-
                     <td className="px-4 py-3 border-b border-white/20">
-                      {s.status === "Draft" ||
-                      s.status === "Completed" ||
-                      s.status === "Approved" ? (
+                      {["Draft", "Completed", "Approved"].includes(s.status) ? (
                         <select
                           value={s.status}
                           onChange={(e) =>
@@ -222,11 +208,9 @@ export default function ClientScriptsPage({ params }: Props) {
                         s.status
                       )}
                     </td>
-
                     <td className="px-4 py-3 border-b border-white/20">
                       {isWeeklyTask(idx) ? "✅ Weekly Task" : ""}
                     </td>
-
                     <td className="px-4 py-3 border-b border-white/20 flex gap-2">
                       <button
                         onClick={() =>
