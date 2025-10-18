@@ -4,49 +4,63 @@ export const API_BASE =
 
 export async function apiFetch<T = unknown>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeout = 15000 // ⏱️ optional timeout in ms
 ): Promise<T> {
-  // ✅ Get JWT token from localStorage if available
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  // ✅ Build headers
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  // ✅ Send request
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  // ✅ If unauthorized → clear session + redirect
-  if (res.status === 401) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-      window.location.href = "/login";
-    }
-    throw new Error("Unauthorized — please log in again");
-  }
-
-  let json: any = null;
   try {
-    json = await res.json();
-  } catch {
-    throw new Error(`Invalid JSON response from ${endpoint}`);
-  }
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
-  // ✅ Error handling
-  if (!res.ok) {
-    const message =
-      typeof json === "object" && json?.error
-        ? json.error
-        : `Request failed with status ${res.status}`;
-    throw new Error(message);
-  }
+    // ✅ Unauthorized handling
+    if (res.status === 401) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
+      throw new Error("Unauthorized — please log in again");
+    }
 
-  return json as T;
+    // ✅ Handle 204 (no content)
+    if (res.status === 204) return {} as T;
+
+    // ✅ Parse JSON safely
+    let json: any;
+    try {
+      json = await res.json();
+    } catch {
+      throw new Error(`Invalid JSON response from ${endpoint}`);
+    }
+
+    // ✅ Handle errors
+    if (!res.ok) {
+      const error: Error & { status?: number } = new Error(
+        json?.error || `Request failed with status ${res.status}`
+      );
+      error.status = res.status;
+      throw error;
+    }
+
+    return json as T;
+  } catch (err: any) {
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out — please try again");
+    }
+    throw err;
+  }
 }

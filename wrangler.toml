@@ -3,11 +3,11 @@ main = "lead-capture/src/index.ts"
 compatibility_date = "2025-10-08"
 
 [[d1_databases]]
-binding = "DB"                      # this is how you'll reference it in your Worker
-database_name = "nour-leads"        # your database name from the list command
-database_id = "82edcad3-020e-46a3-99b6-0148ec5c65e2"      # paste your database UUID here
-
-[[d1_databases]]
-binding = "OPS_DB"     # new ops system
+binding = "OPS_DB"
 database_name = "nour-ops"
 database_id = "89262bb6-8a4d-4f70-93a9-106b7c2bb8b7"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nour-leads"
+database_id = "82edcad3-020e-46a3-99b6-0148ec5c65e2"

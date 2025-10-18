@@ -13,7 +13,7 @@ export default function StatsCard({
   assigned,
   completed,
   onClick,
-  textColor = "black",
+  textColor = "white",
   bgTransparent = false,
 }: StatsCardProps) {
   return (

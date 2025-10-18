@@ -22,6 +22,7 @@ interface ApiResponse<T> {
   success: boolean;
   client?: T;
   publishes?: T;
+  data?: T; // in case the API uses "data" instead of "publishes"
   [key: string]: any;
 }
 
@@ -43,9 +44,21 @@ export default function ClientDetailPage() {
           apiFetch<ApiResponse<Publish[]>>(`/api/posts?client_id=${clientId}`),
         ]);
 
-        if (clientRes.success) setClient(clientRes.client ?? null);
-        if (postsRes.success && Array.isArray(postsRes.publishes))
-          setPublishes(postsRes.publishes);
+if (clientRes.success) {
+  const clientData = Array.isArray(clientRes.data)
+    ? clientRes.data.find((c) => c.id === Number(clientId))
+    : clientRes.data;
+  setClient(clientData ?? null);
+}
+        // ✅ Handle both `publishes` or `data` keys
+        if (postsRes.success) {
+          const list = Array.isArray(postsRes.publishes)
+            ? postsRes.publishes
+            : Array.isArray(postsRes.data)
+            ? postsRes.data
+            : [];
+          setPublishes(list);
+        }
       } catch (err) {
         console.error("Error fetching client:", err);
       } finally {
@@ -138,9 +151,10 @@ export default function ClientDetailPage() {
 
         {/* ===== Published Content ===== */}
         <h2 className="text-2xl font-semibold mb-4">Published Content</h2>
+
         {publishes.length === 0 ? (
-          <p className="text-gray-400">
-            No published content found for this client.
+          <p className="text-gray-400 text-center italic mt-6">
+            No posts yet published.
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

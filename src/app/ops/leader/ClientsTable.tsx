@@ -16,26 +16,46 @@ interface Client {
 
 interface ApiResponse {
   success: boolean;
-  clients?: Client[];
+  data?: Client[];
   error?: string;
 }
 
 export default function ClientsTable() {
   const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [showModal, setShowModal] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
-  // Fetch clients
   useEffect(() => {
     async function fetchClients() {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/clients`);
-        const json = (await res.json()) as ApiResponse;
+        setLoading(true);
+        setError(null);
 
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("No token found — please log in again.");
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/clients`, {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+
+        // Handle auth failure
+        if (res.status === 401) {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          return;
+        }
+
+        const json = (await res.json()) as ApiResponse;
         if (!json.success) throw new Error(json.error || "Failed to fetch clients");
-        setClients(json.clients || []);
-      } catch (err) {
+
+        setClients(json.data || []);
+      } catch (err: any) {
         console.error("Error fetching clients:", err);
+        setError(err.message || "An unexpected error occurred");
       } finally {
         setLoading(false);
       }
@@ -44,10 +64,23 @@ export default function ClientsTable() {
     fetchClients();
   }, []);
 
+  // 🌀 Loading state
   if (loading) {
     return <p className="text-center text-gray-400">Loading clients...</p>;
   }
 
+  // ❌ Error state
+  if (error) {
+    return (
+      <p className="text-center text-red-400">
+        {error.includes("token")
+          ? "Session expired. Redirecting to login..."
+          : error}
+      </p>
+    );
+  }
+
+  // ✅ Success state
   return (
     <div className="relative bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-xl mt-10">
       <div className="flex justify-between items-center mb-6">
@@ -70,6 +103,7 @@ export default function ClientsTable() {
             <th className="px-4 py-2 text-center">Status</th>
           </tr>
         </thead>
+
         <tbody>
           {clients.length === 0 ? (
             <tr>

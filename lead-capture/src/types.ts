@@ -3,7 +3,7 @@
    ======================================================================== */
 export interface Env {
   DB: D1Database;
-  OPS_DB?: D1Database; // optional secondary DB (for OPS team)
+  OPS_DB: D1Database; // optional secondary DB (for OPS team)
   JWT_SECRET: string;
 }
 

@@ -7,6 +7,7 @@ import {
   handleClients,
   handlePosts,
   handleAdmin,
+  handleScripts,
 } from "./handlers";
 
 /**
@@ -71,6 +72,12 @@ export default {
       if (pathname === "/api/admin" && request.method === "GET") {
         return withCORS(await handleAdmin(request, env));
       }
+      // ----------------------------------------------------------------------
+      // 🧩 Scripts
+      // ----------------------------------------------------------------------
+      if (pathname === "/api/scripts" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
+  return withCORS(await handleScripts(request, env));
+}
 
       // ----------------------------------------------------------------------
       // ❌ NOT FOUND
