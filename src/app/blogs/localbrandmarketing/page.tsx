@@ -3,6 +3,8 @@ import Link from "next/link";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { Cairo } from "next/font/google";
+import { post } from "./meta";
+
 
 const cairo = Cairo({
   subsets: ["arabic"],
@@ -30,15 +32,7 @@ type Section = {
 // 🔹 Post Metadata (exported for blog grid)
 // --------------------------------------------------
 
-export const post: Post = {
-  title:
-    "كيف تبني خطة تسويق ذكية لبراند الملابس الخاص بك في 2025 | Nour Marketing",
-  excerpt:
-    "دليل عملي من شركة Nour Marketing يشرح خطوة بخطوة كيف تبني خطة تسويق سوشيال ميديا فعّالة لبراند الملابس الخاص بك في 2025.",
-  date: "21 أكتوبر 2025",
-  image: "/photos/blogs/1.png",
-  slug: "localbrandmarketing",
-};
+
 
 // --------------------------------------------------
 // 🔹 Page Metadata (SEO)

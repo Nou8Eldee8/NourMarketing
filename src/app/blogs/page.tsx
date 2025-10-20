@@ -22,7 +22,7 @@ async function getPosts() {
 
   for (const dir of entries) {
     try {
-      const { post } = await import(`../blogs/${dir.name}/page`);
+const { post } = await import(`../blogs/${dir.name}/meta`);
       posts.push({ slug: dir.name, ...post });
     } catch (err) {
       console.warn(`⚠️ Skipped blog "${dir.name}" (missing export post)`);
