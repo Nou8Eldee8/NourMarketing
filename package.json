@@ -18,6 +18,7 @@
     "csv-parser": "^3.2.0",
     "csvtojson": "^2.0.10",
     "framer-motion": "^12.23.1",
+    "gray-matter": "^4.0.3",
     "jose": "^6.1.0",
     "keen-slider": "^6.8.6",
     "lucide-react": "^0.525.0",
@@ -27,6 +28,8 @@
     "react-fast-marquee": "^1.6.5",
     "react-icons": "^5.5.0",
     "react-intersection-observer": "^9.16.0",
+    "remark": "^15.0.1",
+    "remark-html": "^16.0.1",
     "tailwind-merge": "^3.3.1",
     "uuid": "^13.0.0"
   },

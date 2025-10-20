@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Instagram,
   X,
+  Newspaper,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -53,8 +54,12 @@ export default function Header() {
           <NavigationMenu className="hidden md:flex flex-1 justify-center">
             <NavigationMenuList className="flex items-center gap-6 font-cocogoose text-sm text-[#fee3d8]">
               {[
-                { href: "https://drive.google.com/file/d/1kZSLtaSd9zCt0-dPfq6bDBe0ZQygkc91/view?usp=sharing", label: "Our Work" },
+                {
+                  href: "https://drive.google.com/file/d/1kZSLtaSd9zCt0-dPfq6bDBe0ZQygkc91/view?usp=sharing",
+                  label: "Our Work",
+                },
                 { href: "#our-story", label: "Our Story" },
+                { href: "/blogs", label: "Blogs" }, // ✅ Added Blogs link
                 { href: "/contact", label: "Let’s Talk" },
                 { href: "/about", label: "About Us" },
               ].map(({ href, label }) => (
@@ -124,6 +129,11 @@ export default function Header() {
                 label: "Instagram",
               },
               {
+                href: "/blogs",
+                icon: <Newspaper size={18} />, // ✅ Added Blogs item
+                label: "Blogs",
+              },
+              {
                 href: "/contact",
                 icon: <FileText size={18} />,
                 label: "Fill our form",
@@ -152,7 +162,7 @@ export default function Header() {
                 >
                   {icon} {label}
                 </Link>
-                {index < 5 && (
+                {index < 6 && (
                   <hr className="border-white/20 w-2/3 mx-auto my-2 rounded-full" />
                 )}
               </div>
