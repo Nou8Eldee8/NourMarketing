@@ -60,7 +60,7 @@ export default function ClientsTable() {
         setLoading(false);
       }
     }
-
+    
     fetchClients();
   }, []);
 

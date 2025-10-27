@@ -8,7 +8,7 @@ import ClientsTable from "./ClientsTable";
 
 export default function LeaderDashboard() {
   const router = useRouter();
-
+  
   // Example summary stats
   const teamStats = {
     assigned: 25,
@@ -36,6 +36,7 @@ export default function LeaderDashboard() {
         
       </main>
       <ClientsTable />
+      
     </div>
   );
 }

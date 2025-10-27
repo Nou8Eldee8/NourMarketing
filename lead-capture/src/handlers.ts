@@ -332,36 +332,82 @@ export async function handleClients(req: Request, env: Env): Promise<Response> {
       /* --------------------------------------------------------------------
          🟢 GET → fetch assigned clients with approved scripts count
       -------------------------------------------------------------------- */
-      case "GET": {
-        try {
-          const creatorId = url.searchParams.get("creator_id");
-          if (!creatorId) {
-            return jsonResponse({ success: false, error: "Missing creator_id" }, 400);
-          }
+case "GET": {
+  console.log("✅ GET /api/clients hit", {
+    headers: Array.from(req.headers.entries()),
+  });
 
-          const query = `
-            SELECT 
-              c.*,
-              COALESCE(SUM(CASE WHEN s.status='Approved' AND s.content_type='Post' THEN 1 ELSE 0 END), 0) AS approved_posts,
-              COALESCE(SUM(CASE WHEN s.status='Approved' AND s.content_type='Video' THEN 1 ELSE 0 END), 0) AS approved_videos
-            FROM clients c
-            INNER JOIN client_creators cc ON cc.client_id = c.id
-            LEFT JOIN scripts s ON s.client_id = c.id AND s.creator_id = cc.creator_id
-            WHERE cc.creator_id = ?
-            GROUP BY c.id
-            ORDER BY COALESCE(NULLIF(c.start_date, ''), '1970-01-01') DESC
-          `;
+  try {
+    // 1️⃣ Decode token to determine the user role and ID
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ success: false, error: "Missing Authorization header" }, 401);
+    }
 
-          const result = await env.OPS_DB.prepare(query).bind(creatorId).all<Client & {
-            approved_posts: number;
-            approved_videos: number;
-          }>();
+    const token = authHeader.replace("Bearer ", "");
+    let payload: any;
+    try {
+      payload = JSON.parse(atob(token.split(".")[1]));
+    } catch {
+      return jsonResponse({ success: false, error: "Invalid token format" }, 401);
+    }
 
-          return jsonResponse({ success: true, data: result.results });
-        } catch (e) {
-          return jsonResponse({ success: false, error: String(e) }, 500);
-        }
-      }
+    const userId = payload.userId || payload.id || payload.sub;
+    const role = payload.role || "creator";
+
+    console.log("🔍 Decoded JWT payload:", payload);
+    console.log("Detected userId:", userId, "role:", role);
+
+    if (!userId) {
+      return jsonResponse({ success: false, error: "Invalid token: missing userId" }, 401);
+    }
+
+    // 2️⃣ Prepare query based on role
+    const leaderRoles = ["leader", "team_leader", "admin"];
+    const isLeader = leaderRoles.includes(role);
+
+    let query: string;
+    let result;
+
+    if (isLeader) {
+      // Leader sees all clients
+      query = `
+        SELECT 
+          c.*,
+          COALESCE(SUM(CASE WHEN s.status='Approved' AND s.content_type='Post' THEN 1 ELSE 0 END), 0) AS approved_posts,
+          COALESCE(SUM(CASE WHEN s.status='Approved' AND s.content_type='Video' THEN 1 ELSE 0 END), 0) AS approved_videos
+        FROM clients c
+        LEFT JOIN scripts s ON s.client_id = c.id
+        GROUP BY c.id
+        ORDER BY COALESCE(NULLIF(c.start_date, ''), '1970-01-01') DESC
+      `;
+      result = await env.OPS_DB.prepare(query).all<Client & { approved_posts: number; approved_videos: number }>();
+    } else {
+      // Creator sees only their assigned clients
+      query = `
+        SELECT 
+          c.*,
+          COALESCE(SUM(CASE WHEN s.status='Approved' AND s.content_type='Post' THEN 1 ELSE 0 END), 0) AS approved_posts,
+          COALESCE(SUM(CASE WHEN s.status='Approved' AND s.content_type='Video' THEN 1 ELSE 0 END), 0) AS approved_videos
+        FROM clients c
+        INNER JOIN client_creators cc ON cc.client_id = c.id
+        LEFT JOIN scripts s ON s.client_id = c.id AND s.creator_id = cc.creator_id
+        WHERE cc.creator_id = ?
+        GROUP BY c.id
+        ORDER BY COALESCE(NULLIF(c.start_date, ''), '1970-01-01') DESC
+      `;
+      result = await env.OPS_DB.prepare(query).bind(userId).all<Client & { approved_posts: number; approved_videos: number }>();
+    }
+
+    // 3️⃣ Respond with data
+    return jsonResponse({ success: true, data: result.results });
+  } catch (e: any) {
+    console.error("❌ Error fetching clients:", e);
+    return jsonResponse({ success: false, error: String(e) }, 500);
+  }
+}
+
+
 
 /* --------------------------------------------------------------------
    🟡 POST → add new client + optionally assign to creators
