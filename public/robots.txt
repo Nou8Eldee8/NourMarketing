@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://www.nourmarketing.com
+
+# Sitemaps
+Sitemap: https://www.nourmarketing.com/sitemap.xml
