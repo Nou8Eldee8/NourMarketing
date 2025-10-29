@@ -3,7 +3,7 @@ User-agent: *
 Allow: /
 
 # Host
-Host: https://www.nourmarketing.com
+Host: https://nourmarketing.com
 
 # Sitemaps
-Sitemap: https://www.nourmarketing.com/sitemap.xml
+Sitemap: https://nourmarketing.com/sitemap.xml

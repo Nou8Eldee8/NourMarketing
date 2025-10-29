@@ -1,6 +1,6 @@
 /** @type {import('next-sitemap').IConfig} */
 module.exports = {
-  siteUrl: 'https://www.nourmarketing.com',
+  siteUrl: 'https://nourmarketing.com',
   generateRobotsTxt: true,
   sitemapSize: 7000,
 };
