@@ -33,6 +33,7 @@ export default function Projects() {
         {/* Left Column: Text */}
         <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
           <SplitText
+            onLetterAnimationComplete={null}
             text="Listen to what our clients say!"
             className="text-4xl md:text-5xl font-bold text-white mb-8 relative z-10"
             delay={50}

@@ -48,6 +48,7 @@ export default function SuccessPartners() {
                 />
             </div>
             <SplitText
+                onLetterAnimationComplete={null}
                 text="Our Success Partners"
                 className="text-4xl font-bold text-center mb-16 text-white"
                 delay={0.1}
