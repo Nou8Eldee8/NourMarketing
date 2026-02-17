@@ -25,8 +25,7 @@ export default function Hero() {
         animateBy="words"
         direction="top"
         onAnimationComplete={() => { }}
-        className="text-4xl md:text-6xl font-bold text-white mb-8 text-center justify-center"
-      />
+        className="text-4xl md:text-6xl font-bold text-white mb-8 text-center justify-center" animationFrom={undefined} animationTo={undefined} />
       <ShinyText
         text="✨ Nour Marketing Agency cures it all."
         speed={2}
