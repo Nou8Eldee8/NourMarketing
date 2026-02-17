@@ -33,7 +33,7 @@ export default function Footer() {
         {/* Copyright */}
         <p className="text-sm text-[#fee3d8]/70" style={{ fontFamily: "'Dancing Script', cursive" }}>
           &copy; {new Date().getFullYear()} Nour Marketing Agency. All rights reserved.
-          
+
         </p>
       </div>
     </footer>

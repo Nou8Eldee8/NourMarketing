@@ -1,7 +1,8 @@
 import "./globals.css";
-import { cocogoose, dancingScript } from "@/lib/fonts";
+import { cocogoose, dancingScript, cairo } from "@/lib/fonts";
 import Script from "next/script";
 import MetaPixel from "./components/MetaPixel"; // ✅ Pixel component
+import NavBar from "./components/NavBar";
 
 export const metadata = {
   title: "Nour Marketing Agency",
@@ -16,7 +17,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cocogoose.variable} ${dancingScript.variable}`}
+      className={`${cocogoose.variable} ${dancingScript.variable} ${cairo.variable}`}
     >
       <head>
         <meta name="facebook-domain-verification" content="wqduv4g0pp6s2vqeq7vkpgj5ij129r" />
@@ -39,6 +40,7 @@ export default function RootLayout({
       </head>
 
       <body className="bg-[#0f0215] text-[#fee3d8]">
+        <NavBar />
         {children}
       </body>
     </html>

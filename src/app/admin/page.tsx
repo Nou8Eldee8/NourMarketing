@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api"; // 👈 import helper
+import { apiFetch } from "@/lib/api";
+import UsersTab from "./components/UsersTab";
 
 // ==============================
 // 🔹 Types
@@ -46,6 +47,7 @@ interface UsersResponse {
 // ==============================
 export default function AdminPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"leads" | "users">("leads");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,14 +179,14 @@ export default function AdminPage() {
   // ==============================
   // 🧱 Render
   // ==============================
-  if (loading) return <p className="text-center mt-8">Loading leads...</p>;
+  if (loading) return <p className="text-center mt-8">Loading...</p>;
   if (error) return <p className="text-center mt-8 text-red-500">{error}</p>;
   if (!user) return null;
 
   return (
     <div
       style={{ fontFamily: "'Cairo', sans-serif" }}
-      className="p-8 max-w-full overflow-x-auto text-gray-100"
+      className="p-8 max-w-full overflow-x-auto text-gray-100 min-h-screen"
     >
       <style>
         {`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&display=swap');`}
@@ -201,111 +203,140 @@ export default function AdminPage() {
         </Link>
       </div>
 
-      {/* Header + Filters */}
+      {/* Header */}
       <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
 
-        <div className="flex gap-4">
-          <input
-            type="text"
-            placeholder="Search by name or phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-3 w-72 rounded-lg border border-purple-600 bg-purple-700 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-purple-700 text-white border border-purple-500 rounded px-3 py-2"
-          >
-            {statuses.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-
-          <button
-            onClick={() => {
-              localStorage.removeItem("user");
-              router.push("/login");
-            }}
-            className="bg-red-500 text-white px-4 py-2 rounded"
-          >
-            Logout
-          </button>
-        </div>
+        <button
+          onClick={() => {
+            localStorage.removeItem("user");
+            router.push("/login");
+          }}
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+        >
+          Logout
+        </button>
       </div>
 
-      {/* Leads Table */}
-      {filteredLeads.length === 0 ? (
-        <p className="text-center text-gray-300">No leads found.</p>
-      ) : (
-        <table className="w-full table-auto border-collapse border border-purple-600 text-left rounded-lg overflow-hidden">
-          <thead className="bg-purple-600">
-            <tr>
-              {[
-                "Business Name",
-                "Name",
-                "Phone",
-                "Assigned To",
-                "Budget",
-                "Website",
-                "Status",
-                "Created At",
-              ].map((label) => (
-                <th key={label} className="px-4 py-2 border border-purple-500 text-gray-100">
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-white/20">
+        <button
+          onClick={() => setActiveTab("leads")}
+          className={`px-6 py-3 font-semibold transition ${activeTab === "leads"
+              ? "text-purple-400 border-b-2 border-purple-400"
+              : "text-gray-400 hover:text-gray-200"
+            }`}
+        >
+          Leads
+        </button>
+        <button
+          onClick={() => setActiveTab("users")}
+          className={`px-6 py-3 font-semibold transition ${activeTab === "users"
+              ? "text-purple-400 border-b-2 border-purple-400"
+              : "text-gray-400 hover:text-gray-200"
+            }`}
+        >
+          Team Members
+        </button>
+      </div>
 
-          <tbody>
-            {filteredLeads.map((lead, idx) => (
-              <tr
-                key={lead.id}
-                className={`cursor-pointer ${
-                  idx % 2 === 0
-                    ? "bg-purple-700 hover:bg-purple-600"
-                    : "bg-purple-600 hover:bg-purple-500"
-                }`}
-                onClick={() => router.push(`/leads/${lead.id}`)}
-              >
-                <td className="px-4 py-2 border border-purple-500">{lead.business_name}</td>
-                <td className="px-4 py-2 border border-purple-500">{lead.name || "-"}</td>
-                <td className="px-4 py-2 border border-purple-500">{lead.phone || "-"}</td>
-                <td className="px-4 py-2 border border-purple-500">
-                  {getAssignedUsername(lead.assigned_to)}
-                </td>
-                <td className="px-4 py-2 border border-purple-500">{lead.budget ?? "-"}</td>
-                <td className="px-4 py-2 border border-purple-500">
-                  {lead.has_website ? "✅" : "❌"}
-                </td>
-                <td className="px-4 py-2 border border-purple-500">
-                  <select
-                    value={lead.status || "Not Contacted"}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      handleStatusChange(lead.id, e.target.value);
-                    }}
-                    className="bg-purple-800 text-white rounded px-2 py-1 border border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-300"
+      {/* Tab Content */}
+      {activeTab === "leads" ? (
+        <div>
+          {/* Filters */}
+          <div className="flex gap-4 mb-6">
+            <input
+              type="text"
+              placeholder="Search by name or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="p-3 w-72 rounded-lg border border-purple-600 bg-purple-700 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-purple-700 text-white border border-purple-500 rounded px-3 py-2"
+            >
+              {statuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Leads Table */}
+          {filteredLeads.length === 0 ? (
+            <p className="text-center text-gray-300">No leads found.</p>
+          ) : (
+            <table className="w-full table-auto border-collapse border border-purple-600 text-left rounded-lg overflow-hidden">
+              <thead className="bg-purple-600">
+                <tr>
+                  {[
+                    "Business Name",
+                    "Name",
+                    "Phone",
+                    "Assigned To",
+                    "Budget",
+                    "Website",
+                    "Status",
+                    "Created At",
+                  ].map((label) => (
+                    <th key={label} className="px-4 py-2 border border-purple-500 text-gray-100">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredLeads.map((lead, idx) => (
+                  <tr
+                    key={lead.id}
+                    className={`cursor-pointer ${idx % 2 === 0
+                        ? "bg-purple-700 hover:bg-purple-600"
+                        : "bg-purple-600 hover:bg-purple-500"
+                      }`}
+                    onClick={() => router.push(`/leads/${lead.id}`)}
                   >
-                    {statuses
-                      .filter((s) => s !== "All")
-                      .map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                  </select>
-                </td>
-                <td className="px-4 py-2 border border-purple-500">{lead.created_at || "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    <td className="px-4 py-2 border border-purple-500">{lead.business_name}</td>
+                    <td className="px-4 py-2 border border-purple-500">{lead.name || "-"}</td>
+                    <td className="px-4 py-2 border border-purple-500">{lead.phone || "-"}</td>
+                    <td className="px-4 py-2 border border-purple-500">
+                      {getAssignedUsername(lead.assigned_to)}
+                    </td>
+                    <td className="px-4 py-2 border border-purple-500">{lead.budget ?? "-"}</td>
+                    <td className="px-4 py-2 border border-purple-500">
+                      {lead.has_website ? "✅" : "❌"}
+                    </td>
+                    <td className="px-4 py-2 border border-purple-500">
+                      <select
+                        value={lead.status || "Not Contacted"}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(lead.id, e.target.value);
+                        }}
+                        className="bg-purple-800 text-white rounded px-2 py-1 border border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                      >
+                        {statuses
+                          .filter((s) => s !== "All")
+                          .map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2 border border-purple-500">{lead.created_at || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : (
+        <UsersTab />
       )}
     </div>
   );

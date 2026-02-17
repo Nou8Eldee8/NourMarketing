@@ -8,11 +8,13 @@ import {
   handlePosts,
   handleAdmin,
   handleScripts,
+  handleOpsUsers,
+  handleClientTeam,
 } from "./handlers";
 
 /**
  * ✅ Cloudflare Worker Entry
- * Handles: /api/login, /api/lead, /api/notes, /api/users, /api/admin
+ * Handles: /api/login, /api/lead, /api/notes, /api/users, /api/admin, /api/ops/*
  * Includes: full CORS + robust error handling
  */
 export default {
@@ -53,6 +55,20 @@ export default {
       }
 
       // ----------------------------------------------------------------------
+      // 🧩 OPS USERS
+      // ----------------------------------------------------------------------
+      if (pathname === "/api/ops/users" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
+        return withCORS(await handleOpsUsers(request, env));
+      }
+
+      // ----------------------------------------------------------------------
+      // 🧩 OPS - Client Team Assignment (must be before generic /api/ops/clients)
+      // ----------------------------------------------------------------------
+      if (pathname.match(/^\/api\/ops\/clients\/\d+\/team$/) && ["GET", "PUT"].includes(request.method)) {
+        return withCORS(await handleClientTeam(request, env));
+      }
+
+      // ----------------------------------------------------------------------
       // 🧩 CLIENTS
       // ----------------------------------------------------------------------
       if (pathname === "/api/clients" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
@@ -76,8 +92,8 @@ export default {
       // 🧩 Scripts
       // ----------------------------------------------------------------------
       if (pathname === "/api/scripts" && ["GET", "POST", "PUT", "DELETE"].includes(request.method)) {
-  return withCORS(await handleScripts(request, env));
-}
+        return withCORS(await handleScripts(request, env));
+      }
 
       // ----------------------------------------------------------------------
       // ❌ NOT FOUND
@@ -90,8 +106,8 @@ export default {
         err instanceof Error
           ? err.message
           : typeof err === "string"
-          ? err
-          : "Internal server error";
+            ? err
+            : "Internal server error";
 
       return withCORS(jsonResponse({ success: false, error: message }, 500));
     }

@@ -4,6 +4,8 @@ module.exports = {
     extend: {
       fontFamily: {
         cocogoose: ["var(--font-cocogoose)"],
+        cairo: ["var(--font-cairo)"],
+        dancingScript: ["var(--font-dancing-script)"],
       },
     },
   },

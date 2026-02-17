@@ -26,14 +26,31 @@ export default function ContentCreatorDashboard() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const CREATOR_ID = 5; // replace with logged-in user id dynamically if available
+  const [userId, setUserId] = useState<number | null>(null);
 
   useEffect(() => {
+    // Get user ID from localStorage
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setUserId(user.id);
+      } catch (error) {
+        console.error("Error parsing user:", error);
+        router.push("/login");
+      }
+    } else {
+      router.push("/login");
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!userId) return;
+
     async function fetchClients() {
       try {
-        // Get only clients assigned to this creator
-        const res = await apiFetch<ApiResponse<Client>>(`/api/clients?creator_id=${CREATOR_ID}`);
+        // The worker will automatically filter by the authenticated user's ID from JWT
+        const res = await apiFetch<ApiResponse<Client>>(`/api/clients`);
         const activeClients = res.data.filter((c) => c.status === "Active");
 
         // Calculate weekly highlights and approved scripts
@@ -71,7 +88,7 @@ export default function ContentCreatorDashboard() {
     }
 
     fetchClients();
-  }, []);
+  }, [userId]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">

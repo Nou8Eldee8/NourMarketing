@@ -11,14 +11,14 @@ interface User {
   id: number;
   username: string;
   role:
-    | "admin"
-    | "sales"
-    | "team_leader"
-    | "social_media_specialist"
-    | "video_editor"
-    | "content_creator"
-    | "reel_maker"
-    | null;
+  | "admin"
+  | "sales"
+  | "team_leader"
+  | "social_media_specialist"
+  | "video_editor"
+  | "content_creator"
+  | "reel_maker"
+  | null;
 }
 
 interface LoginResponse {
@@ -75,7 +75,10 @@ export default function LoginPage() {
      🎯 Role-based redirection
   -------------------------------------------------------------------- */
   const redirectByRole = (role: string | null) => {
-    switch (role) {
+    // Normalize role to handle both formats
+    const normalizedRole = role?.toLowerCase().replace(/\s+/g, '_');
+
+    switch (normalizedRole) {
       case "admin":
         router.push("/admin");
         break;
@@ -83,12 +86,15 @@ export default function LoginPage() {
         router.push("/sales-dashboard");
         break;
       case "team_leader":
+      case "manager":
         router.push("/ops/leader");
         break;
       case "social_media_specialist":
+      case "specialist":
         router.push("/ops/specialist");
         break;
       case "video_editor":
+      case "editor":
         router.push("/ops/editor");
         break;
       case "content_creator":

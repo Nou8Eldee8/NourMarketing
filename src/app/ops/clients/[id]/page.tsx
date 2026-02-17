@@ -6,8 +6,9 @@ import { apiFetch } from "@/lib/api";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pencil, ArrowLeft } from "lucide-react";
+import { Pencil, ArrowLeft, Users } from "lucide-react";
 import EditClientModal from "../../components/EditClientModal";
+import AssignTeamModal from "./components/AssignTeamModal";
 import { Client } from "@/types/client";
 
 interface Publish {
@@ -35,6 +36,12 @@ export default function ClientDetailPage() {
   const [publishes, setPublishes] = useState<Publish[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [assigningTeam, setAssigningTeam] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<{
+    creators: any[];
+    specialists: any[];
+    editors: any[];
+  }>({ creators: [], specialists: [], editors: [] });
 
   useEffect(() => {
     async function fetchClient() {
@@ -44,19 +51,19 @@ export default function ClientDetailPage() {
           apiFetch<ApiResponse<Publish[]>>(`/api/posts?client_id=${clientId}`),
         ]);
 
-if (clientRes.success) {
-  const clientData = Array.isArray(clientRes.data)
-    ? clientRes.data.find((c) => c.id === Number(clientId))
-    : clientRes.data;
-  setClient(clientData ?? null);
-}
+        if (clientRes.success) {
+          const clientData = Array.isArray(clientRes.data)
+            ? clientRes.data.find((c) => c.id === Number(clientId))
+            : clientRes.data;
+          setClient(clientData ?? null);
+        }
         // ✅ Handle both `publishes` or `data` keys
         if (postsRes.success) {
           const list = Array.isArray(postsRes.publishes)
             ? postsRes.publishes
             : Array.isArray(postsRes.data)
-            ? postsRes.data
-            : [];
+              ? postsRes.data
+              : [];
           setPublishes(list);
         }
       } catch (err) {
@@ -68,6 +75,24 @@ if (clientRes.success) {
 
     if (clientId) fetchClient();
   }, [clientId]);
+
+  // Fetch team assignments
+  useEffect(() => {
+    async function fetchTeam() {
+      try {
+        const teamRes = await apiFetch<{
+          success: boolean;
+          data: { creators: any[]; specialists: any[]; editors: any[] };
+        }>(`/api/ops/clients/${clientId}/team`);
+        if (teamRes.success) {
+          setTeamMembers(teamRes.data);
+        }
+      } catch (error) {
+        console.error("Error fetching team:", error);
+      }
+    }
+    if (clientId) fetchTeam();
+  }, [clientId, assigningTeam]);
 
   if (loading) {
     return (
@@ -91,9 +116,8 @@ if (clientRes.success) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`max-w-4xl mx-auto transition-all duration-300 ${
-          editing ? "blur-sm" : ""
-        }`}
+        className={`max-w-4xl mx-auto transition-all duration-300 ${editing ? "blur-sm" : ""
+          }`}
       >
         {/* ===== Back Button ===== */}
         <Button
@@ -126,16 +150,16 @@ if (clientRes.success) {
                   {new Date(client.start_date).toLocaleDateString()}
                 </p>
               )}
-              {client.videos_in_contract !== undefined && (
+              {client.videos_per_month !== undefined && (
                 <p>
-                  <strong>Videos in Contract:</strong>{" "}
-                  {client.videos_in_contract}
+                  <strong>Videos per Month:</strong>{" "}
+                  {client.videos_per_month}
                 </p>
               )}
-              {client.posts_in_contract !== undefined && (
+              {client.posts_per_month !== undefined && (
                 <p>
-                  <strong>Posts in Contract:</strong>{" "}
-                  {client.posts_in_contract}
+                  <strong>Posts per Month:</strong>{" "}
+                  {client.posts_per_month}
                 </p>
               )}
               {client.notes && (
@@ -145,6 +169,81 @@ if (clientRes.success) {
                   </p>
                 </div>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ===== Assigned Team ===== */}
+        <Card className="bg-white/10 backdrop-blur-xl border border-white/20 text-white rounded-2xl shadow-lg p-6 mb-10">
+          <CardContent>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-6 w-6 text-purple-400" />
+                <h2 className="text-2xl font-semibold">Assigned Team</h2>
+              </div>
+              <Button
+                onClick={() => setAssigningTeam(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit Team
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Creators */}
+              <div>
+                <h3 className="text-sm font-semibold text-purple-300 mb-2">
+                  Content Creators
+                </h3>
+                {teamMembers.creators.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No creators assigned</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {teamMembers.creators.map((member) => (
+                      <li key={member.id} className="text-sm text-gray-300">
+                        {member.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Specialists */}
+              <div>
+                <h3 className="text-sm font-semibold text-blue-300 mb-2">
+                  Specialists
+                </h3>
+                {teamMembers.specialists.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No specialists assigned</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {teamMembers.specialists.map((member) => (
+                      <li key={member.id} className="text-sm text-gray-300">
+                        {member.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Editors */}
+              <div>
+                <h3 className="text-sm font-semibold text-green-300 mb-2">
+                  Editors
+                </h3>
+                {teamMembers.editors.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No editors assigned</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {teamMembers.editors.map((member) => (
+                      <li key={member.id} className="text-sm text-gray-300">
+                        {member.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -208,6 +307,18 @@ if (clientRes.success) {
           setEditing(false);
         }}
       />
+
+      {/* ===== Assign Team Modal ===== */}
+      {assigningTeam && (
+        <AssignTeamModal
+          clientId={Number(clientId)}
+          open={assigningTeam}
+          onClose={() => setAssigningTeam(false)}
+          onSaved={() => {
+            setAssigningTeam(false);
+          }}
+        />
+      )}
     </div>
   );
 }

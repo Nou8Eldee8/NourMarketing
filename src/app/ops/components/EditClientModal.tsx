@@ -32,11 +32,15 @@ export default function EditClientModal({
     name: "",
     industry: "",
     start_date: "",
+    contract_end_date: "",
+    videos_per_month: 0,
+    posts_per_month: 0,
+    budget: 0,
+    currency: "USD",
     notes: "",
     status: "Active",
-    videos_in_contract: 0,
-    posts_in_contract: 0,
     leave_reason: "",
+    created_at: "",
   });
 
   useEffect(() => {
@@ -161,12 +165,12 @@ export default function EditClientModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm mb-1 text-gray-300">
-                  Videos in Contract
+                  Videos per Month
                 </label>
                 <input
-                  name="videos_in_contract"
+                  name="videos_per_month"
                   type="number"
-                  value={formData.videos_in_contract}
+                  value={formData.videos_per_month}
                   onChange={handleChange}
                   className="w-full rounded-md p-2 bg-white/10 border border-white/20"
                 />
@@ -174,12 +178,12 @@ export default function EditClientModal({
 
               <div>
                 <label className="block text-sm mb-1 text-gray-300">
-                  Posts in Contract
+                  Posts per Month
                 </label>
                 <input
-                  name="posts_in_contract"
+                  name="posts_per_month"
                   type="number"
-                  value={formData.posts_in_contract}
+                  value={formData.posts_per_month}
                   onChange={handleChange}
                   className="w-full rounded-md p-2 bg-white/10 border border-white/20"
                 />
@@ -197,14 +201,13 @@ export default function EditClientModal({
               >
                 <option>Active</option>
                 <option>On Hold</option>
-                <option>Paused</option>
-                <option>Completed</option>
-                <option>Lost</option>
+                <option>Churned</option>
+                <option>Lead</option>
               </select>
             </div>
 
-            {/* Leave reason (only if Lost) */}
-            {formData.status === "Lost" && (
+            {/* Leave reason (only if Churned) */}
+            {formData.status === "Churned" && (
               <div>
                 <label className="block text-sm mb-1 text-gray-300">
                   Leave Reason
@@ -213,7 +216,7 @@ export default function EditClientModal({
                   name="leave_reason"
                   value={formData.leave_reason ?? ""}
                   onChange={handleChange}
-                  placeholder="Why was this client lost?"
+                  placeholder="Why did this client churn?"
                   className="w-full rounded-md p-2 bg-white/10 border border-white/20"
                   rows={3}
                 />
